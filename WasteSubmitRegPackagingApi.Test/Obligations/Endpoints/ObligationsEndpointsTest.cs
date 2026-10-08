@@ -12,14 +12,14 @@ public class ObligationsEndpointsTest
     private const string ComplianceSchemeId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
     [Fact]
-    public async Task Get_returns_a_direct_registrant_as_a_single_item()
+    public async Task Filtered_endpoint_returns_a_direct_registrant_as_a_single_item()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            $"/obligations/organisations/{DirectRegistrantId}/approved-submissions?packagingYear=2024", cancellationToken);
+            $"/packaging/2024/organisation/{DirectRegistrantId}/aggregated-submission", cancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -31,25 +31,23 @@ public class ObligationsEndpointsTest
         var item = Assert.Single(root.GetProperty("items").EnumerateArray());
         Assert.Equal(DirectRegistrantId, item.GetProperty("organisationId").GetString());
         Assert.Equal(JsonValueKind.Null, item.GetProperty("joinerCode").ValueKind);
-        Assert.Equal(JsonValueKind.Null, item.GetProperty("joinerDate").ValueKind);
         Assert.Equal(JsonValueKind.Null, item.GetProperty("leaverCode").ValueKind);
-        Assert.Equal(JsonValueKind.Null, item.GetProperty("leaverDate").ValueKind);
 
         var materials = item.GetProperty("materials").EnumerateArray().ToList();
         Assert.Equal(3, materials.Count);
         Assert.Equal("PL", materials[0].GetProperty("materialCode").GetString());
-        Assert.Equal(412350, materials[0].GetProperty("weight").GetInt64());
+        Assert.Equal(412.35m, materials[0].GetProperty("tonnes").GetDecimal());
     }
 
     [Fact]
-    public async Task Get_returns_compliance_scheme_members_with_joiner_and_leaver_codes_as_numbers()
+    public async Task Filtered_endpoint_returns_compliance_scheme_members_with_codes_as_numbers()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            $"/obligations/organisations/{ComplianceSchemeId}/approved-submissions?packagingYear=2024", cancellationToken);
+            $"/packaging/2024/organisation/{ComplianceSchemeId}/aggregated-submission", cancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -70,14 +68,14 @@ public class ObligationsEndpointsTest
     }
 
     [Fact]
-    public async Task Get_returns_not_found_for_an_unknown_organisation()
+    public async Task Filtered_endpoint_returns_not_found_for_an_unknown_organisation()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            $"/obligations/organisations/{Guid.NewGuid()}/approved-submissions?packagingYear=2024", cancellationToken);
+            $"/packaging/2024/organisation/{Guid.NewGuid()}/aggregated-submission", cancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 
@@ -87,28 +85,70 @@ public class ObligationsEndpointsTest
     }
 
     [Fact]
-    public async Task Get_returns_not_found_for_a_year_with_no_data()
+    public async Task Filtered_endpoint_returns_not_found_for_a_year_with_no_data()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            $"/obligations/organisations/{DirectRegistrantId}/approved-submissions?packagingYear=2023", cancellationToken);
+            $"/packaging/2023/organisation/{DirectRegistrantId}/aggregated-submission", cancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
-    public async Task Get_returns_bad_request_when_packaging_year_is_missing()
+    public async Task Unfiltered_endpoint_returns_every_approved_submission_grouped_by_submitter()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync(
-            $"/obligations/organisations/{DirectRegistrantId}/approved-submissions", cancellationToken);
+        var response = await client.GetAsync("/packaging/2024/aggregated-submissions", cancellationToken);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var root = json.RootElement;
+
+        Assert.Equal(new[] { "approvedSubmissions" }, root.EnumerateObject().Select(property => property.Name));
+
+        var submissions = root.GetProperty("approvedSubmissions").EnumerateArray().ToList();
+        Assert.Equal(2, submissions.Count);
+
+        var direct = submissions[0];
+        Assert.Equal(DirectRegistrantId, direct.GetProperty("submitterId").GetString());
+        Assert.Equal("DirectRegistrant", direct.GetProperty("submitterType").GetString());
+        var directItem = Assert.Single(direct.GetProperty("aggregatedPackaging").EnumerateArray());
+        Assert.Equal(DirectRegistrantId, directItem.GetProperty("organisationId").GetString());
+
+        var scheme = submissions[1];
+        Assert.Equal(ComplianceSchemeId, scheme.GetProperty("submitterId").GetString());
+        Assert.Equal("ComplianceScheme", scheme.GetProperty("submitterType").GetString());
+        Assert.Equal(3, scheme.GetProperty("aggregatedPackaging").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Unfiltered_endpoint_returns_not_found_for_a_year_with_no_data()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/packaging/2023/aggregated-submissions", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Year_must_be_a_number()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/packaging/latest/aggregated-submissions", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }

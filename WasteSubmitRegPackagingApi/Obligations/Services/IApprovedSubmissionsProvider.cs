@@ -4,9 +4,12 @@ namespace WasteSubmitRegPackagingApi.Obligations.Services;
 
 public interface IApprovedSubmissionsProvider
 {
-    Task<ItemsResponse<OrganisationPackaging>?> GetApprovedSubmissionsAsync(
+    Task<ItemsResponse<OrganisationPackaging>?> GetAggregatedSubmissionAsync(
+        int year,
         Guid organisationId,
-        int packagingYear,
-        bool aggregate,
+        CancellationToken cancellationToken);
+
+    Task<ApprovedSubmissionsResponse?> GetAggregatedSubmissionsAsync(
+        int year,
         CancellationToken cancellationToken);
 }

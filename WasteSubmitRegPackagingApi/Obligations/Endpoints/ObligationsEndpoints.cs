@@ -9,36 +9,49 @@ public static class ObligationsEndpoints
 {
     public static RouteGroupBuilder MapObligationsEndpoints(this IEndpointRouteBuilder app)
     {
-        // The path is TBC on the ticket; agree it with the Obligations team before this goes live.
-        var group = app.MapGroup("/obligations")
-            .WithTags("Obligations");
+        var group = app.MapGroup("/packaging/{year:int}")
+            .WithTags("Packaging");
 
-        group.MapGet("/organisations/{organisationId:guid}/approved-submissions", GetApprovedSubmissions)
-            .WithName("GetApprovedSubmissions");
+        // Both return approved submissions only; a status filter can be added later if needed.
+        group.MapGet("/organisation/{organisationId:guid}/aggregated-submission", GetAggregatedSubmission)
+            .WithName("GetAggregatedSubmission");
+
+        group.MapGet("/aggregated-submissions", GetAggregatedSubmissions)
+            .WithName("GetAggregatedSubmissions");
 
         return group;
     }
 
-    private static async Task<Results<Ok<ItemsResponse<OrganisationPackaging>>, NotFound<ProblemDetails>>> GetApprovedSubmissions(
+    private static async Task<Results<Ok<ItemsResponse<OrganisationPackaging>>, NotFound<ProblemDetails>>> GetAggregatedSubmission(
+        [FromRoute] int year,
         [FromRoute] Guid organisationId,
-        [FromQuery] int packagingYear,
         [FromServices] IApprovedSubmissionsProvider approvedSubmissionsProvider,
-        CancellationToken cancellationToken,
-        [FromQuery] bool aggregate = true)
+        CancellationToken cancellationToken)
     {
-        var response = await approvedSubmissionsProvider.GetApprovedSubmissionsAsync(
-            organisationId, packagingYear, aggregate, cancellationToken);
+        var response = await approvedSubmissionsProvider.GetAggregatedSubmissionAsync(year, organisationId, cancellationToken);
 
-        if (response is null)
-        {
-            return TypedResults.NotFound(new ProblemDetails
-            {
-                Title = "Approved submissions not found",
-                Detail = $"No approved submissions for organisation {organisationId} in {packagingYear}",
-                Status = StatusCodes.Status404NotFound
-            });
-        }
-
-        return TypedResults.Ok(response);
+        return response is not null
+            ? TypedResults.Ok(response)
+            : NotFoundProblem($"No approved submissions for organisation {organisationId} in {year}");
     }
+
+    private static async Task<Results<Ok<ApprovedSubmissionsResponse>, NotFound<ProblemDetails>>> GetAggregatedSubmissions(
+        [FromRoute] int year,
+        [FromServices] IApprovedSubmissionsProvider approvedSubmissionsProvider,
+        CancellationToken cancellationToken)
+    {
+        var response = await approvedSubmissionsProvider.GetAggregatedSubmissionsAsync(year, cancellationToken);
+
+        return response is not null
+            ? TypedResults.Ok(response)
+            : NotFoundProblem($"No approved submissions in {year}");
+    }
+
+    private static NotFound<ProblemDetails> NotFoundProblem(string detail) =>
+        TypedResults.NotFound(new ProblemDetails
+        {
+            Title = "Approved submissions not found",
+            Detail = detail,
+            Status = StatusCodes.Status404NotFound
+        });
 }
