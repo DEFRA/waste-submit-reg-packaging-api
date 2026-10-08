@@ -1,5 +1,7 @@
 using WasteSubmitRegPackagingApi.Example.Endpoints;
 using WasteSubmitRegPackagingApi.Example.Services;
+using WasteSubmitRegPackagingApi.Obligations.Endpoints;
+using WasteSubmitRegPackagingApi.Obligations.Services;
 using WasteSubmitRegPackagingApi.Config;
 using WasteSubmitRegPackagingApi.Utils;
 using WasteSubmitRegPackagingApi.Utils.Http;
@@ -58,6 +60,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
 
     // App services
     services.AddSingleton<IExamplePersistence, ExamplePersistence>();
+    services.AddSingleton<IApprovedSubmissionsProvider, StubApprovedSubmissionsProvider>();
 }
 
 [ExcludeFromCodeCoverage]
@@ -111,6 +114,8 @@ static void ConfigureMiddleware(WebApplication app)
 static void ConfigureEndpoints(WebApplication app)
 {
     app.MapHealthChecks("/health", new HealthCheckOptions());
+
+    app.MapObligationsEndpoints();
 
     // Remove before deploying
     app.MapExampleEndpoints();

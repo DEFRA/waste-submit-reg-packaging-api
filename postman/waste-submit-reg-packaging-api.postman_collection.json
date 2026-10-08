@@ -1,0 +1,714 @@
+{
+  "info": {
+    "_postman_id": "589d3ce9-0f36-4ceb-b390-afc0e64fdb27",
+    "name": "Waste Submit Reg Packaging API",
+    "description": "Requests for waste-submit-reg-packaging-api: aggregated packaging data for the Obligations service.\n\n**Two endpoints**\n\n- `GET /packaging/{year}/aggregated-submissions`: every approved submission for the year, grouped by submitter.\n- `GET /packaging/{year}/organisation/{organisationId}/aggregated-submission`: the organisations for one submitter.\n\nBoth return approved submissions only. Each organisation carries its joiner or leaver code (numbered as in the [GOV.UK registration file guidance](https://www.gov.uk/guidance/register-for-epr-for-packaging-create-your-registration-file)), the matching date, and its packaging in tonnes per material.\n\n**Quick start**\n\n1. Run the service: `dotnet run --project WasteSubmitRegPackagingApi` (port 8085).\n2. Open **1. Local (stub data)** and send any request, or right-click the folder and choose **Run folder** to run every test.\n\n**Variables** (collection variables, edit on the collection's Variables tab)\n\n- `baseUrl`: the local service.\n- `year`: the packaging year. The stub has data for 2024.\n- `directRegistrantId`, `complianceSchemeId`: the two submitters in the stub data.\n- `cdpBaseUrl`, `cdpApiKey`: for the CDP dev folder.\n\nThe service is still serving stub data, so the numbers are examples.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Local (stub data)",
+      "description": "Start the service first, from the repo root:\n\n```\ndotnet run --project WasteSubmitRegPackagingApi\n```\n\nIt listens on http://localhost:8085. Every request here has tests, so you can check the lot in one go: right-click this folder and choose **Run folder**.",
+      "item": [
+        {
+          "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Is the service up? Returns 200 when it is running."
+          },
+          "response": []
+        },
+        {
+          "name": "Unfiltered: every approved submission for a year",
+          "description": "`GET /packaging/{year}/aggregated-submissions`. Every approved submission for the year, grouped by submitter.",
+          "item": [
+            {
+              "name": "All approved submissions",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "const checkOrganisation = (o) => {",
+                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "    [o.joinerCode, o.leaverCode].forEach(code => pm.expect(code === null || typeof code === 'number', 'codes are numbers or null').to.be.true);",
+                      "    [o.joinerDate, o.leaverDate].forEach(date => pm.expect(date === null || /^\\d{4}-\\d{2}-\\d{2}$/.test(date), 'dates are yyyy-MM-dd or null').to.be.true);",
+                      "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
+                      "    o.materials.forEach(m => {",
+                      "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
+                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "    });",
+                      "};",
+                      "pm.test('Top level is approvedSubmissions only', () => pm.expect(Object.keys(body)).to.eql(['approvedSubmissions']));",
+                      "pm.test('Each submission has a submitter and its organisations', () => {",
+                      "    body.approvedSubmissions.forEach(s => {",
+                      "        pm.expect(s.submitterId).to.be.a('string');",
+                      "        pm.expect(['DirectRegistrant', 'ComplianceScheme']).to.include(s.submitterType);",
+                      "        pm.expect(s.aggregatedPackaging).to.be.an('array').that.is.not.empty;",
+                      "        s.aggregatedPackaging.forEach(checkOrganisation);",
+                      "    });",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/packaging/{{year}}/aggregated-submissions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "aggregated-submissions"
+                  ]
+                },
+                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner or leaver code and date and its packaging in tonnes per material.\n\nThe stub has data for 2024 only."
+              },
+              "response": [
+                {
+                  "name": "200: two submitters",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/packaging/{{year}}/aggregated-submissions",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "packaging",
+                        "{{year}}",
+                        "aggregated-submissions"
+                      ]
+                    },
+                    "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner or leaver code and date and its packaging in tonnes per material.\n\nThe stub has data for 2024 only."
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "body": "{\n  \"approvedSubmissions\": [\n    {\n      \"submitterId\": \"11111111-1111-4111-8111-111111111111\",\n      \"submitterType\": \"DirectRegistrant\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"11111111-1111-4111-8111-111111111111\",\n          \"joinerCode\": null,\n          \"joinerDate\": null,\n          \"leaverCode\": null,\n          \"leaverDate\": null,\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"tonnes\": 412.35\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"tonnes\": 655.12\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"tonnes\": 167.8\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"submitterId\": \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\n      \"submitterType\": \"ComplianceScheme\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"22222222-2222-4222-8222-222222222222\",\n          \"joinerCode\": null,\n          \"joinerDate\": null,\n          \"leaverCode\": null,\n          \"leaverDate\": null,\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"tonnes\": 100\n            },\n            {\n              \"materialCode\": \"WD\",\n              \"tonnes\": 50\n            },\n            {\n              \"materialCode\": \"AL\",\n              \"tonnes\": 25\n            },\n            {\n              \"materialCode\": \"ST\",\n              \"tonnes\": 40\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"tonnes\": 150\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"tonnes\": 200\n            },\n            {\n              \"materialCode\": \"FC\",\n              \"tonnes\": 30\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"33333333-3333-4333-8333-333333333333\",\n          \"joinerCode\": 3,\n          \"joinerDate\": \"2025-07-05\",\n          \"leaverCode\": null,\n          \"leaverDate\": null,\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"tonnes\": 75\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"tonnes\": 120\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"44444444-4444-4444-8444-444444444444\",\n          \"joinerCode\": null,\n          \"joinerDate\": null,\n          \"leaverCode\": 13,\n          \"leaverDate\": \"2025-09-30\",\n          \"materials\": [\n            {\n              \"materialCode\": \"GL\",\n              \"tonnes\": 64\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+                }
+              ]
+            },
+            {
+              "name": "Year with no data (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/packaging/2023/aggregated-submissions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "2023",
+                    "aggregated-submissions"
+                  ]
+                },
+                "description": "A year with no approved submissions returns 404 with a problem details body."
+              },
+              "response": [
+                {
+                  "name": "404: no data for the year",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/packaging/2023/aggregated-submissions",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "packaging",
+                        "2023",
+                        "aggregated-submissions"
+                      ]
+                    },
+                    "description": "A year with no approved submissions returns 404 with a problem details body."
+                  },
+                  "status": "Not Found",
+                  "code": 404,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\n  \"title\": \"Approved submissions not found\",\n  \"status\": 404,\n  \"detail\": \"No approved submissions in 2023\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "Year is not a number (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 Not Found (the route does not match)', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/packaging/latest/aggregated-submissions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "latest",
+                    "aggregated-submissions"
+                  ]
+                },
+                "description": "The year must be a number, so this route does not match."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Filtered: one organisation",
+          "description": "`GET /packaging/{year}/organisation/{organisationId}/aggregated-submission`. The organisations for one submitter, as `items`.",
+          "item": [
+            {
+              "name": "Direct registrant",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "const checkOrganisation = (o) => {",
+                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "    [o.joinerCode, o.leaverCode].forEach(code => pm.expect(code === null || typeof code === 'number', 'codes are numbers or null').to.be.true);",
+                      "    [o.joinerDate, o.leaverDate].forEach(date => pm.expect(date === null || /^\\d{4}-\\d{2}-\\d{2}$/.test(date), 'dates are yyyy-MM-dd or null').to.be.true);",
+                      "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
+                      "    o.materials.forEach(m => {",
+                      "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
+                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "    });",
+                      "};",
+                      "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
+                      "pm.test('One organisation, the direct registrant itself', () => {",
+                      "    pm.expect(body.items).to.have.lengthOf(1);",
+                      "    pm.expect(body.items[0].organisationId).to.eql(pm.collectionVariables.get('directRegistrantId'));",
+                      "    checkOrganisation(body.items[0]);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/packaging/{{year}}/organisation/{{directRegistrantId}}/aggregated-submission",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "organisation",
+                    "{{directRegistrantId}}",
+                    "aggregated-submission"
+                  ]
+                },
+                "description": "A direct registrant reports for itself, so `items` holds one organisation: the registrant."
+              },
+              "response": [
+                {
+                  "name": "200: direct registrant",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/packaging/{{year}}/organisation/{{directRegistrantId}}/aggregated-submission",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "packaging",
+                        "{{year}}",
+                        "organisation",
+                        "{{directRegistrantId}}",
+                        "aggregated-submission"
+                      ]
+                    },
+                    "description": "A direct registrant reports for itself, so `items` holds one organisation: the registrant."
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "body": "{\n  \"items\": [\n    {\n      \"organisationId\": \"11111111-1111-4111-8111-111111111111\",\n      \"joinerCode\": null,\n      \"joinerDate\": null,\n      \"leaverCode\": null,\n      \"leaverDate\": null,\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"tonnes\": 412.35\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"tonnes\": 655.12\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"tonnes\": 167.8\n        }\n      ]\n    }\n  ]\n}"
+                }
+              ]
+            },
+            {
+              "name": "Compliance scheme (members joining and leaving)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "const checkOrganisation = (o) => {",
+                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "    [o.joinerCode, o.leaverCode].forEach(code => pm.expect(code === null || typeof code === 'number', 'codes are numbers or null').to.be.true);",
+                      "    [o.joinerDate, o.leaverDate].forEach(date => pm.expect(date === null || /^\\d{4}-\\d{2}-\\d{2}$/.test(date), 'dates are yyyy-MM-dd or null').to.be.true);",
+                      "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
+                      "    o.materials.forEach(m => {",
+                      "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
+                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "    });",
+                      "};",
+                      "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
+                      "pm.test('One item per scheme member', () => {",
+                      "    pm.expect(body.items).to.have.lengthOf(3);",
+                      "    body.items.forEach(checkOrganisation);",
+                      "});",
+                      "pm.test('A member that joined has joiner code 3 and a joiner date', () => {",
+                      "    const joiner = body.items.find(o => o.joinerCode !== null);",
+                      "    pm.expect(joiner.joinerCode).to.eql(3);",
+                      "    pm.expect(joiner.joinerDate).to.eql('2025-07-05');",
+                      "});",
+                      "pm.test('A member that left has leaver code 13 and a leaver date', () => {",
+                      "    const leaver = body.items.find(o => o.leaverCode !== null);",
+                      "    pm.expect(leaver.leaverCode).to.eql(13);",
+                      "    pm.expect(leaver.leaverDate).to.eql('2025-09-30');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/packaging/{{year}}/organisation/{{complianceSchemeId}}/aggregated-submission",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "organisation",
+                    "{{complianceSchemeId}}",
+                    "aggregated-submission"
+                  ]
+                },
+                "description": "A compliance scheme returns one item per member. In the stub data one member joined part-way through the year (joiner code 3) and one resigned (leaver code 13). Codes are numbered as in the GOV.UK registration file guidance."
+              },
+              "response": [
+                {
+                  "name": "200: compliance scheme with three members",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/packaging/{{year}}/organisation/{{complianceSchemeId}}/aggregated-submission",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "packaging",
+                        "{{year}}",
+                        "organisation",
+                        "{{complianceSchemeId}}",
+                        "aggregated-submission"
+                      ]
+                    },
+                    "description": "A compliance scheme returns one item per member. In the stub data one member joined part-way through the year (joiner code 3) and one resigned (leaver code 13). Codes are numbered as in the GOV.UK registration file guidance."
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "body": "{\n  \"items\": [\n    {\n      \"organisationId\": \"22222222-2222-4222-8222-222222222222\",\n      \"joinerCode\": null,\n      \"joinerDate\": null,\n      \"leaverCode\": null,\n      \"leaverDate\": null,\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"tonnes\": 100\n        },\n        {\n          \"materialCode\": \"WD\",\n          \"tonnes\": 50\n        },\n        {\n          \"materialCode\": \"AL\",\n          \"tonnes\": 25\n        },\n        {\n          \"materialCode\": \"ST\",\n          \"tonnes\": 40\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"tonnes\": 150\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"tonnes\": 200\n        },\n        {\n          \"materialCode\": \"FC\",\n          \"tonnes\": 30\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"33333333-3333-4333-8333-333333333333\",\n      \"joinerCode\": 3,\n      \"joinerDate\": \"2025-07-05\",\n      \"leaverCode\": null,\n      \"leaverDate\": null,\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"tonnes\": 75\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"tonnes\": 120\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"44444444-4444-4444-8444-444444444444\",\n      \"joinerCode\": null,\n      \"joinerDate\": null,\n      \"leaverCode\": 13,\n      \"leaverDate\": \"2025-09-30\",\n      \"materials\": [\n        {\n          \"materialCode\": \"GL\",\n          \"tonnes\": 64\n        }\n      ]\n    }\n  ]\n}"
+                }
+              ]
+            },
+            {
+              "name": "Unknown organisation (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/packaging/{{year}}/organisation/99999999-9999-4999-8999-999999999999/aggregated-submission",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "organisation",
+                    "99999999-9999-4999-8999-999999999999",
+                    "aggregated-submission"
+                  ]
+                },
+                "description": "An organisation with no approved submissions returns 404 with a problem details body."
+              },
+              "response": [
+                {
+                  "name": "404: unknown organisation",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/packaging/{{year}}/organisation/99999999-9999-4999-8999-999999999999/aggregated-submission",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "packaging",
+                        "{{year}}",
+                        "organisation",
+                        "99999999-9999-4999-8999-999999999999",
+                        "aggregated-submission"
+                      ]
+                    },
+                    "description": "An organisation with no approved submissions returns 404 with a problem details body."
+                  },
+                  "status": "Not Found",
+                  "code": 404,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\n  \"title\": \"Approved submissions not found\",\n  \"status\": 404,\n  \"detail\": \"No approved submissions for organisation 99999999-9999-4999-8999-999999999999 in 2024\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "Year with no data (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/packaging/2023/organisation/{{directRegistrantId}}/aggregated-submission",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "2023",
+                    "organisation",
+                    "{{directRegistrantId}}",
+                    "aggregated-submission"
+                  ]
+                },
+                "description": "A known organisation in a year with no data returns 404."
+              },
+              "response": []
+            },
+            {
+              "name": "Organisation ID is not a GUID (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 Not Found (the route does not match)', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/packaging/{{year}}/organisation/100123/aggregated-submission",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "organisation",
+                    "100123",
+                    "aggregated-submission"
+                  ]
+                },
+                "description": "The organisation ID is the GUID (the external ID), not the 6-digit reference number, so this route does not match."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. CDP dev",
+      "description": "For once the service is deployed to CDP dev. You need:\n\n1. The AWS OpenVPN connected.\n2. `cdpApiKey` set to your Developer API key (CDP Portal, your profile). Put it in the **Current value** column so it is not shared if the collection is exported.\n\nA protected-zone service is not reachable directly from a laptop, so these go through the ephemeral-protected endpoint, which gives up after about 5 seconds.",
+      "item": [
+        {
+          "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{cdpApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{cdpBaseUrl}}/health",
+              "host": [
+                "{{cdpBaseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Is the service up in CDP dev?"
+          },
+          "response": []
+        },
+        {
+          "name": "All approved submissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const checkOrganisation = (o) => {",
+                  "    pm.expect(o.organisationId).to.be.a('string');",
+                  "    [o.joinerCode, o.leaverCode].forEach(code => pm.expect(code === null || typeof code === 'number', 'codes are numbers or null').to.be.true);",
+                  "    [o.joinerDate, o.leaverDate].forEach(date => pm.expect(date === null || /^\\d{4}-\\d{2}-\\d{2}$/.test(date), 'dates are yyyy-MM-dd or null').to.be.true);",
+                  "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
+                  "    o.materials.forEach(m => {",
+                  "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
+                  "        pm.expect(m.tonnes).to.be.a('number');",
+                  "    });",
+                  "};",
+                  "pm.test('Top level is approvedSubmissions only', () => pm.expect(Object.keys(body)).to.eql(['approvedSubmissions']));",
+                  "pm.test('Each submission has a submitter and its organisations', () => {",
+                  "    body.approvedSubmissions.forEach(s => {",
+                  "        pm.expect(s.submitterId).to.be.a('string');",
+                  "        pm.expect(['DirectRegistrant', 'ComplianceScheme']).to.include(s.submitterType);",
+                  "        pm.expect(s.aggregatedPackaging).to.be.an('array').that.is.not.empty;",
+                  "        s.aggregatedPackaging.forEach(checkOrganisation);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{cdpApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{cdpBaseUrl}}/packaging/{{year}}/aggregated-submissions",
+              "host": [
+                "{{cdpBaseUrl}}"
+              ],
+              "path": [
+                "packaging",
+                "{{year}}",
+                "aggregated-submissions"
+              ]
+            },
+            "description": "Every approved submission for `{{year}}`, grouped by submitter."
+          },
+          "response": []
+        },
+        {
+          "name": "Direct registrant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const checkOrganisation = (o) => {",
+                  "    pm.expect(o.organisationId).to.be.a('string');",
+                  "    [o.joinerCode, o.leaverCode].forEach(code => pm.expect(code === null || typeof code === 'number', 'codes are numbers or null').to.be.true);",
+                  "    [o.joinerDate, o.leaverDate].forEach(date => pm.expect(date === null || /^\\d{4}-\\d{2}-\\d{2}$/.test(date), 'dates are yyyy-MM-dd or null').to.be.true);",
+                  "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
+                  "    o.materials.forEach(m => {",
+                  "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
+                  "        pm.expect(m.tonnes).to.be.a('number');",
+                  "    });",
+                  "};",
+                  "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
+                  "pm.test('One organisation, the direct registrant itself', () => {",
+                  "    pm.expect(body.items).to.have.lengthOf(1);",
+                  "    pm.expect(body.items[0].organisationId).to.eql(pm.collectionVariables.get('directRegistrantId'));",
+                  "    checkOrganisation(body.items[0]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{cdpApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{cdpBaseUrl}}/packaging/{{year}}/organisation/{{directRegistrantId}}/aggregated-submission",
+              "host": [
+                "{{cdpBaseUrl}}"
+              ],
+              "path": [
+                "packaging",
+                "{{year}}",
+                "organisation",
+                "{{directRegistrantId}}",
+                "aggregated-submission"
+              ]
+            },
+            "description": "The organisations for one submitter, as `items`."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8085"
+    },
+    {
+      "key": "year",
+      "value": "2024"
+    },
+    {
+      "key": "directRegistrantId",
+      "value": "11111111-1111-4111-8111-111111111111"
+    },
+    {
+      "key": "complianceSchemeId",
+      "value": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    },
+    {
+      "key": "cdpBaseUrl",
+      "value": "https://ephemeral-protected.api.dev.cdp-int.defra.cloud/waste-submit-reg-packaging-api"
+    },
+    {
+      "key": "cdpApiKey",
+      "value": ""
+    }
+  ]
+}
