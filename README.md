@@ -80,6 +80,25 @@ Run CDP-Deployments application:
 dotnet run --project WasteSubmitRegPackagingApi --launch-profile Development
 ```
 
+### Postman
+
+[postman/waste-submit-reg-packaging-api.postman_collection.json](postman/waste-submit-reg-packaging-api.postman_collection.json)
+covers both packaging endpoints.
+
+1. Start the service (see [Running](#running)). It listens on http://localhost:8085.
+2. Import the collection into Postman.
+3. Open **1. Local (stub data)** and send any request, or right-click the folder and choose **Run folder**
+   to run every test.
+
+The **2. CDP dev** folder needs the AWS OpenVPN and your Developer API key (CDP Portal, your profile) in the
+`cdpApiKey` variable.
+
+To run the local tests from the command line:
+
+```bash
+npx newman run postman/waste-submit-reg-packaging-api.postman_collection.json --folder "1. Local (stub data)"
+```
+
 ### SonarCloud
 
 Example SonarCloud configuration are available in the GitHub Action workflows.
