@@ -1,5 +1,3 @@
-using WasteSubmitRegPackagingApi.Example.Endpoints;
-using WasteSubmitRegPackagingApi.Example.Services;
 using WasteSubmitRegPackagingApi.Obligations.Endpoints;
 using WasteSubmitRegPackagingApi.Obligations.Services;
 using WasteSubmitRegPackagingApi.Config;
@@ -64,7 +62,6 @@ static void ConfigureServices(WebApplicationBuilder builder)
         .AddPostgres();
 
     // App services
-    services.AddSingleton<IExamplePersistence, ExamplePersistence>();
     services.AddSingleton<IApprovedSubmissionsProvider, StubApprovedSubmissionsProvider>();
 }
 
@@ -164,7 +161,4 @@ static void ConfigureEndpoints(WebApplication app)
     }
 
     app.MapObligationsEndpoints();
-
-    // Remove before deploying
-    app.MapExampleEndpoints();
 }
