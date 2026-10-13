@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Diagnostics.CodeAnalysis;
 
 namespace WasteSubmitRegPackagingApi.Utils;
@@ -24,12 +25,11 @@ public static class TrustStore
     private static void AddCertificates(List<byte[]> certificates)
     {
         if (certificates.Count == 0) return; // to stop trust store access denied issues on Macs
-        var x509Certificate2S = certificates.Select(X509CertificateLoader.LoadCertificate);
         var certificateCollection = new X509Certificate2Collection();
 
-        foreach (var certificate2 in x509Certificate2S)
+        foreach (var certificate in certificates)
         {
-            certificateCollection.Add(certificate2);
+            certificateCollection.AddRange(ReadCertificates(certificate));
         }
 
         var store = new X509Store(StoreName.Root, StoreLocation.CurrentUser);
@@ -46,6 +46,24 @@ public static class TrustStore
         {
             store.Close();
         }
+    }
+
+    /// <summary>
+    /// Reads every certificate in a value. A PEM bundle, such as the RDS root CAs, can hold several,
+    /// and X509CertificateLoader.LoadCertificate only reads the first.
+    /// </summary>
+    public static X509Certificate2Collection ReadCertificates(byte[] data)
+    {
+        var text = Encoding.ASCII.GetString(data);
+
+        if (!text.Contains("-----BEGIN CERTIFICATE-----", StringComparison.Ordinal))
+        {
+            return new X509Certificate2Collection(X509CertificateLoader.LoadCertificate(data));
+        }
+
+        var certificates = new X509Certificate2Collection();
+        certificates.ImportFromPem(text);
+        return certificates;
     }
 
     private static bool IsBase64String(string str)
