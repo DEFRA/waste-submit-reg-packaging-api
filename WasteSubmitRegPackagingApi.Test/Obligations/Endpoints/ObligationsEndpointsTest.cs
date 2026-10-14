@@ -30,8 +30,8 @@ public class ObligationsEndpointsTest
 
         var item = Assert.Single(root.GetProperty("items").EnumerateArray());
         Assert.Equal(DirectRegistrantId, item.GetProperty("organisationId").GetString());
-        Assert.Equal(JsonValueKind.Null, item.GetProperty("joinerCode").ValueKind);
-        Assert.Equal(JsonValueKind.Null, item.GetProperty("leaverCode").ValueKind);
+        Assert.Equal(new[] { "organisationId", "events", "materials" }, item.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(0, item.GetProperty("events").GetArrayLength());
 
         var materials = item.GetProperty("materials").EnumerateArray().ToList();
         Assert.Equal(3, materials.Count);
@@ -40,7 +40,7 @@ public class ObligationsEndpointsTest
     }
 
     [Fact]
-    public async Task Filtered_endpoint_returns_compliance_scheme_members_with_codes_as_numbers()
+    public async Task Filtered_endpoint_returns_compliance_scheme_members_with_their_events()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = new WebApplicationFactory<Program>();
@@ -53,18 +53,35 @@ public class ObligationsEndpointsTest
 
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         var items = json.RootElement.GetProperty("items").EnumerateArray().ToList();
-        Assert.Equal(3, items.Count);
+        Assert.Equal(4, items.Count);
 
-        var joiner = items[1];
-        Assert.Equal(JsonValueKind.Number, joiner.GetProperty("joinerCode").ValueKind);
-        Assert.Equal(3, joiner.GetProperty("joinerCode").GetInt32());
-        Assert.Equal("2025-07-05", joiner.GetProperty("joinerDate").GetString());
-        Assert.Equal(JsonValueKind.Null, joiner.GetProperty("leaverCode").ValueKind);
+        Assert.Equal(0, items[0].GetProperty("events").GetArrayLength());
 
-        var leaver = items[2];
-        Assert.Equal(13, leaver.GetProperty("leaverCode").GetInt32());
-        Assert.Equal("2025-09-30", leaver.GetProperty("leaverDate").GetString());
-        Assert.Equal(JsonValueKind.Null, leaver.GetProperty("joinerCode").ValueKind);
+        var joined = Assert.Single(items[1].GetProperty("events").EnumerateArray());
+        Assert.Equal(JsonValueKind.Number, joined.GetProperty("code").ValueKind);
+        Assert.Equal((3, "Joined", "2025-07-05"), Describe(joined));
+
+        var left = Assert.Single(items[2].GetProperty("events").EnumerateArray());
+        Assert.Equal((13, "Left", "2025-09-30"), Describe(left));
+    }
+
+    [Fact]
+    public async Task Filtered_endpoint_returns_every_event_for_a_member_that_joins_leaves_and_rejoins_oldest_first()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync(
+            $"/packaging/2024/organisation/{ComplianceSchemeId}/aggregated-submission", cancellationToken);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var member = json.RootElement.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("organisationId").GetString() == "55555555-5555-4555-8555-555555555555");
+
+        Assert.Equal(
+            new[] { (1, "Joined", "2025-03-03"), (13, "Left", "2025-07-14"), (1, "Joined", "2025-10-01") },
+            member.GetProperty("events").EnumerateArray().Select(Describe));
     }
 
     [Fact]
@@ -125,7 +142,7 @@ public class ObligationsEndpointsTest
         var scheme = submissions[1];
         Assert.Equal(ComplianceSchemeId, scheme.GetProperty("submitterId").GetString());
         Assert.Equal("ComplianceScheme", scheme.GetProperty("submitterType").GetString());
-        Assert.Equal(3, scheme.GetProperty("aggregatedPackaging").GetArrayLength());
+        Assert.Equal(4, scheme.GetProperty("aggregatedPackaging").GetArrayLength());
     }
 
     [Fact]
@@ -151,4 +168,9 @@ public class ObligationsEndpointsTest
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    private static (int Code, string? Action, string? Date) Describe(JsonElement leaverJoinerEvent) =>
+        (leaverJoinerEvent.GetProperty("code").GetInt32(),
+            leaverJoinerEvent.GetProperty("action").GetString(),
+            leaverJoinerEvent.GetProperty("date").GetString());
 }

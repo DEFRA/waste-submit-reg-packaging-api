@@ -30,16 +30,25 @@ can build against them while the real data source is wired in. The service is co
 | `GET /swagger`, `GET /openapi/v1.json` | The API documentation, where Swagger is turned on |
 
 Both packaging endpoints return 404 when there is nothing for the year or organisation. Each organisation carries its
-joiner or leaver code (numbered as in the
-[GOV.UK registration file guidance](https://www.gov.uk/guidance/register-for-epr-for-packaging-create-your-registration-file)),
-the matching date, and its packaging in tonnes per material.
+packaging in tonnes per material, and its `events`: every time it joined or left during the year, oldest first.
+
+```json
+"events": [
+  { "code": 1, "action": "Joined", "date": "2025-03-03" },
+  { "code": 13, "action": "Left", "date": "2025-07-14" }
+]
+```
+
+`code` is numbered as in the
+[GOV.UK registration file guidance](https://www.gov.uk/guidance/register-for-epr-for-packaging-create-your-registration-file),
+and `action` (`Joined` or `Left`) is worked out from it. `events` is `[]` when the organisation did neither.
 
 The stub data is for year `2024`, with two submitters:
 
 | Submitter | `organisationId` |
 |---|---|
 | A direct registrant | `11111111-1111-4111-8111-111111111111` |
-| A compliance scheme with three members, one joining and one leaving | `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa` |
+| A compliance scheme with four members: one with no changes, one joining, one leaving, and one joining, leaving and rejoining | `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa` |
 
 ## Running locally
 
@@ -165,19 +174,22 @@ tool, or send it to a team that will call the API.
 ## Postman
 
 [postman/waste-submit-reg-packaging-api.postman_collection.json](postman/waste-submit-reg-packaging-api.postman_collection.json)
-covers both packaging endpoints, with tests on every request.
+covers every endpoint: both health checks, both packaging endpoints (including the 404 cases) and the API
+documentation. It has two folders with the same requests and tests on every one.
 
-1. Run the service (see [Running locally](#running-locally)).
-2. Import the collection into Postman.
-3. Open **1. Local (stub data)** and send any request, or right-click the folder and choose **Run folder** to run every
-   test.
+| Folder | Calls | Before you run it |
+|---|---|---|
+| **1. Local** | The service on your machine | Start Postgres and the service (see [Running locally](#running-locally)) |
+| **2. CDP dev** | The service deployed in CDP dev | Connect the AWS OpenVPN, and put a Developer API key for dev from your [CDP Portal profile](https://portal.cdp-int.defra.cloud/user-profile) in the `cdpApiKey` collection variable, in the **Current value** column |
 
-The **2. CDP dev** folder needs the AWS OpenVPN and your Developer API key in the `cdpApiKey` variable.
+Import the collection into Postman, then right-click a folder and choose **Run folder** to run every test. If
+`cdpApiKey` is empty, or the gateway rejects it, the dev requests say so.
 
-To run the local tests from the command line:
+To run them from the command line:
 
 ```bash
-npx newman run postman/waste-submit-reg-packaging-api.postman_collection.json --folder "1. Local (stub data)"
+npx newman run postman/waste-submit-reg-packaging-api.postman_collection.json --folder "1. Local"
+npx newman run postman/waste-submit-reg-packaging-api.postman_collection.json --folder "2. CDP dev" --env-var cdpApiKey=<your key>
 ```
 
 ## Testing
@@ -217,7 +229,7 @@ Not set up yet:
 
 | Path | Contains |
 |---|---|
-| `WasteSubmitRegPackagingApi/Obligations/` | The packaging endpoints, response models, leaver and joiner code mapping, and the stub data |
+| `WasteSubmitRegPackagingApi/Obligations/` | The packaging endpoints, response models, the mapping from registration file codes to joiner and leaver events, and the stub data |
 | `WasteSubmitRegPackagingApi/Config/` | Settings classes, validated at startup |
 | `WasteSubmitRegPackagingApi/Utils/Postgres/` | The Postgres connection and its health check |
 | `WasteSubmitRegPackagingApi/Utils/TrustStore.cs` | Loads the certificates CDP supplies, so TLS to Postgres works |
