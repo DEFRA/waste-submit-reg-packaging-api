@@ -3,7 +3,7 @@ namespace WasteSubmitRegPackagingApi.Obligations.Models;
 /// <summary>
 /// Leaver codes from the registration file's leaver_code column, numbered and worded as in
 /// https://www.gov.uk/guidance/register-for-epr-for-packaging-create-your-registration-file.
-/// Serialised as the number.
+/// The API returns the number in an event's code, with the action worked out from which list it is in.
 /// </summary>
 public enum LeaverCode
 {
