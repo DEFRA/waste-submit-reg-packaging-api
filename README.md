@@ -165,19 +165,22 @@ tool, or send it to a team that will call the API.
 ## Postman
 
 [postman/waste-submit-reg-packaging-api.postman_collection.json](postman/waste-submit-reg-packaging-api.postman_collection.json)
-covers both packaging endpoints, with tests on every request.
+covers every endpoint: both health checks, both packaging endpoints (including the 404 cases) and the API
+documentation. It has two folders with the same requests and tests on every one.
 
-1. Run the service (see [Running locally](#running-locally)).
-2. Import the collection into Postman.
-3. Open **1. Local (stub data)** and send any request, or right-click the folder and choose **Run folder** to run every
-   test.
+| Folder | Calls | Before you run it |
+|---|---|---|
+| **1. Local** | The service on your machine | Start Postgres and the service (see [Running locally](#running-locally)) |
+| **2. CDP dev** | The service deployed in CDP dev | Connect the AWS OpenVPN, and put a Developer API key for dev from your [CDP Portal profile](https://portal.cdp-int.defra.cloud/user-profile) in the `cdpApiKey` collection variable, in the **Current value** column |
 
-The **2. CDP dev** folder needs the AWS OpenVPN and your Developer API key in the `cdpApiKey` variable.
+Import the collection into Postman, then right-click a folder and choose **Run folder** to run every test. If
+`cdpApiKey` is empty, or the gateway rejects it, the dev requests say so.
 
-To run the local tests from the command line:
+To run them from the command line:
 
 ```bash
-npx newman run postman/waste-submit-reg-packaging-api.postman_collection.json --folder "1. Local (stub data)"
+npx newman run postman/waste-submit-reg-packaging-api.postman_collection.json --folder "1. Local"
+npx newman run postman/waste-submit-reg-packaging-api.postman_collection.json --folder "2. CDP dev" --env-var cdpApiKey=<your key>
 ```
 
 ## Testing

@@ -1,47 +1,85 @@
 {
   "info": {
-    "_postman_id": "589d3ce9-0f36-4ceb-b390-afc0e64fdb27",
+    "_postman_id": "ebb91176-0c09-4b65-8b6e-ba45684e95f2",
     "name": "Waste Submit Reg Packaging API",
-    "description": "Requests for waste-submit-reg-packaging-api: aggregated packaging data for the Obligations service.\n\n**Two endpoints**\n\n- `GET /packaging/{year}/aggregated-submissions`: every approved submission for the year, grouped by submitter.\n- `GET /packaging/{year}/organisation/{organisationId}/aggregated-submission`: the organisations for one submitter.\n\nBoth return approved submissions only. Each organisation carries its joiner or leaver code (numbered as in the [GOV.UK registration file guidance](https://www.gov.uk/guidance/register-for-epr-for-packaging-create-your-registration-file)), the matching date, and its packaging in tonnes per material.\n\n**Quick start**\n\n1. Run the service: `dotnet run --project WasteSubmitRegPackagingApi` (port 8085).\n2. Open **1. Local (stub data)** and send any request, or right-click the folder and choose **Run folder** to run every test.\n\n**Variables** (collection variables, edit on the collection's Variables tab)\n\n- `baseUrl`: the local service.\n- `year`: the packaging year. The stub has data for 2024.\n- `directRegistrantId`, `complianceSchemeId`: the two submitters in the stub data.\n- `cdpBaseUrl`, `cdpApiKey`: for the CDP dev folder.\n\nThe service is still serving stub data, so the numbers are examples.",
+    "description": "Requests for waste-submit-reg-packaging-api: aggregated packaging data for the Obligations service.\n\n**Two folders, the same requests**\n\n- **1. Local**: the service running on your machine.\n- **2. CDP dev**: the service deployed in CDP dev. Needs the AWS OpenVPN and your Developer API key in `cdpApiKey`.\n\nEach folder covers the health checks, both packaging endpoints (including the 404 cases) and the API documentation. Every request has tests: right-click a folder and choose **Run folder** to run them all.\n\n**Variables** (on the collection's Variables tab)\n\n- `baseUrl`: the local service.\n- `cdpBaseUrl`: the service in CDP dev, through the developer API key gateway.\n- `cdpApiKey`: your Developer API key for dev. Use the **Current value** column.\n- `year`: the packaging year. The stub has data for 2024.\n- `directRegistrantId`, `complianceSchemeId`: the two submitters in the stub data.\n\nThe service is still serving stub data, so the numbers are examples.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "1. Local (stub data)",
-      "description": "Start the service first, from the repo root:\n\n```\ndotnet run --project WasteSubmitRegPackagingApi\n```\n\nIt listens on http://localhost:8085. Every request here has tests, so you can check the lot in one go: right-click this folder and choose **Run folder**.",
+      "name": "1. Local",
+      "description": "Start Postgres and the service first, from the repo root:\n\n```\ndocker compose up -d postgres\ndotnet run --project WasteSubmitRegPackagingApi\n```\n\nThe service listens on http://localhost:8085. Every request has tests, so you can check the lot in one go: right-click this folder and choose **Run folder**.",
       "item": [
         {
-          "name": "Health check",
-          "event": [
+          "name": "1. Health",
+          "description": "Is the service up, and can it reach its Postgres database?",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/health",
-              "host": [
-                "{{baseUrl}}"
+              "name": "Service is running",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Says Healthy', () => pm.expect(pm.response.text()).to.eql('Healthy'));"
+                    ]
+                  }
+                }
               ],
-              "path": [
-                "health"
-              ]
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "health"
+                  ]
+                },
+                "description": "The check CDP uses to decide whether the container is alive. It leaves the database out on purpose."
+              },
+              "response": []
             },
-            "description": "Is the service up? Returns 200 when it is running."
-          },
-          "response": []
+            {
+              "name": "Database connection",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Says Healthy', () => pm.expect(pm.response.text()).to.eql('Healthy'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/health/db",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "health",
+                    "db"
+                  ]
+                },
+                "description": "Runs `SELECT 1` against Postgres. Returns `Healthy` (200) or `Unhealthy` (503).\n\nNeeds the local Postgres running (`docker compose up -d postgres`)."
+              },
+              "response": []
+            }
+          ]
         },
         {
-          "name": "Unfiltered: every approved submission for a year",
-          "description": "`GET /packaging/{year}/aggregated-submissions`. Every approved submission for the year, grouped by submitter.",
+          "name": "2. Every approved submission for a year",
+          "description": "`GET /packaging/{year}/aggregated-submissions`. Every approved submission for the year, grouped by submitter. Not paged.",
           "item": [
             {
               "name": "All approved submissions",
@@ -220,8 +258,8 @@
           ]
         },
         {
-          "name": "Filtered: one organisation",
-          "description": "`GET /packaging/{year}/organisation/{organisationId}/aggregated-submission`. The organisations for one submitter, as `items`.",
+          "name": "3. One submitter",
+          "description": "`GET /packaging/{year}/organisation/{organisationId}/aggregated-submission`. The organisations one submitter reported for, as `items`.",
           "item": [
             {
               "name": "Direct registrant",
@@ -246,7 +284,7 @@
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
                       "pm.test('One organisation, the direct registrant itself', () => {",
                       "    pm.expect(body.items).to.have.lengthOf(1);",
-                      "    pm.expect(body.items[0].organisationId).to.eql(pm.collectionVariables.get('directRegistrantId'));",
+                      "    pm.expect(body.items[0].organisationId).to.eql(pm.variables.get('directRegistrantId'));",
                       "    checkOrganisation(body.items[0]);",
                       "});"
                     ]
@@ -530,157 +568,644 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "4. API documentation",
+          "description": "Served wherever Swagger is turned on: locally, and in dev and test.",
+          "item": [
+            {
+              "name": "OpenAPI document",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Describes both packaging endpoints', () => {",
+                      "    const paths = Object.keys(pm.response.json().paths);",
+                      "    pm.expect(paths).to.include('/packaging/{year}/aggregated-submissions');",
+                      "    pm.expect(paths).to.include('/packaging/{year}/organisation/{organisationId}/aggregated-submission');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/openapi/v1.json",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "openapi",
+                    "v1.json"
+                  ]
+                },
+                "description": "The machine-readable contract. Save the response to import it into Postman or another OpenAPI tool."
+              },
+              "response": []
+            },
+            {
+              "name": "Swagger UI page",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Is the Swagger UI page', () => pm.expect(pm.response.text()).to.include('swagger-ui'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/swagger/index.html",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "swagger",
+                    "index.html"
+                  ]
+                },
+                "description": "The Swagger page. Locally, open it in a browser instead. In CDP a browser cannot send the API key, so this request only proves the page is served."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     },
     {
       "name": "2. CDP dev",
-      "description": "For once the service is deployed to CDP dev. You need:\n\n1. The AWS OpenVPN connected.\n2. `cdpApiKey` set to your Developer API key (CDP Portal, your profile). Put it in the **Current value** column so it is not shared if the collection is exported.\n\nA protected-zone service is not reachable directly from a laptop, so these go through the ephemeral-protected endpoint, which gives up after about 5 seconds.",
+      "description": "The same requests against the service deployed in CDP dev.\n\n**Before you start**\n\n1. Connect the AWS OpenVPN.\n2. Get a Developer API key for **dev** from your profile in the CDP Portal: https://portal.cdp-int.defra.cloud/user-profile\n3. Paste it into the `cdpApiKey` collection variable, in the **Current value** column, so it stays on your machine and is not shared if the collection is exported.\n\nThen right-click this folder and choose **Run folder**.\n\nA protected-zone service cannot be reached directly from a laptop, so every request goes through the `ephemeral-protected` gateway with your key in the `x-api-key` header. The gateway gives up after about 5 seconds.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.variables.get('cdpApiKey')) {",
+              "    throw new Error('Set the cdpApiKey collection variable to your CDP Developer API key for dev first (CDP Portal, your profile).');",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if ([401, 403].includes(pm.response.code)) {",
+              "    pm.test('The gateway accepted the API key', () => pm.expect.fail(",
+              "        'The gateway rejected cdpApiKey (' + pm.response.code + '). Check it is a dev key, or generate a new one in the CDP Portal.'));",
+              "}"
+            ]
+          }
+        }
+      ],
       "item": [
         {
-          "name": "Health check",
-          "event": [
+          "name": "1. Health",
+          "description": "Is the service up, and can it reach its Postgres database?",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "x-api-key",
-                "value": "{{cdpApiKey}}"
-              }
-            ],
-            "url": {
-              "raw": "{{cdpBaseUrl}}/health",
-              "host": [
-                "{{cdpBaseUrl}}"
+              "name": "Service is running",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Says Healthy', () => pm.expect(pm.response.text()).to.eql('Healthy'));"
+                    ]
+                  }
+                }
               ],
-              "path": [
-                "health"
-              ]
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/health",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "health"
+                  ]
+                },
+                "description": "The check CDP uses to decide whether the container is alive. It leaves the database out on purpose."
+              },
+              "response": []
             },
-            "description": "Is the service up in CDP dev?"
-          },
-          "response": []
+            {
+              "name": "Database connection",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Says Healthy', () => pm.expect(pm.response.text()).to.eql('Healthy'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/health/db",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "health",
+                    "db"
+                  ]
+                },
+                "description": "Runs `SELECT 1` against Postgres. Returns `Healthy` (200) or `Unhealthy` (503).\n\nThe first database query after a quiet spell can take a few seconds, and the gateway gives up after about 5. If this fails with a gateway timeout, send it again."
+              },
+              "response": []
+            }
+          ]
         },
         {
-          "name": "All approved submissions",
-          "event": [
+          "name": "2. Every approved submission for a year",
+          "description": "`GET /packaging/{year}/aggregated-submissions`. Every approved submission for the year, grouped by submitter. Not paged.",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "const checkOrganisation = (o) => {",
-                  "    pm.expect(o.organisationId).to.be.a('string');",
-                  "    [o.joinerCode, o.leaverCode].forEach(code => pm.expect(code === null || typeof code === 'number', 'codes are numbers or null').to.be.true);",
-                  "    [o.joinerDate, o.leaverDate].forEach(date => pm.expect(date === null || /^\\d{4}-\\d{2}-\\d{2}$/.test(date), 'dates are yyyy-MM-dd or null').to.be.true);",
-                  "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
-                  "    o.materials.forEach(m => {",
-                  "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
-                  "        pm.expect(m.tonnes).to.be.a('number');",
-                  "    });",
-                  "};",
-                  "pm.test('Top level is approvedSubmissions only', () => pm.expect(Object.keys(body)).to.eql(['approvedSubmissions']));",
-                  "pm.test('Each submission has a submitter and its organisations', () => {",
-                  "    body.approvedSubmissions.forEach(s => {",
-                  "        pm.expect(s.submitterId).to.be.a('string');",
-                  "        pm.expect(['DirectRegistrant', 'ComplianceScheme']).to.include(s.submitterType);",
-                  "        pm.expect(s.aggregatedPackaging).to.be.an('array').that.is.not.empty;",
-                  "        s.aggregatedPackaging.forEach(checkOrganisation);",
-                  "    });",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "x-api-key",
-                "value": "{{cdpApiKey}}"
-              }
-            ],
-            "url": {
-              "raw": "{{cdpBaseUrl}}/packaging/{{year}}/aggregated-submissions",
-              "host": [
-                "{{cdpBaseUrl}}"
+              "name": "All approved submissions",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "const checkOrganisation = (o) => {",
+                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "    [o.joinerCode, o.leaverCode].forEach(code => pm.expect(code === null || typeof code === 'number', 'codes are numbers or null').to.be.true);",
+                      "    [o.joinerDate, o.leaverDate].forEach(date => pm.expect(date === null || /^\\d{4}-\\d{2}-\\d{2}$/.test(date), 'dates are yyyy-MM-dd or null').to.be.true);",
+                      "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
+                      "    o.materials.forEach(m => {",
+                      "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
+                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "    });",
+                      "};",
+                      "pm.test('Top level is approvedSubmissions only', () => pm.expect(Object.keys(body)).to.eql(['approvedSubmissions']));",
+                      "pm.test('Each submission has a submitter and its organisations', () => {",
+                      "    body.approvedSubmissions.forEach(s => {",
+                      "        pm.expect(s.submitterId).to.be.a('string');",
+                      "        pm.expect(['DirectRegistrant', 'ComplianceScheme']).to.include(s.submitterType);",
+                      "        pm.expect(s.aggregatedPackaging).to.be.an('array').that.is.not.empty;",
+                      "        s.aggregatedPackaging.forEach(checkOrganisation);",
+                      "    });",
+                      "});"
+                    ]
+                  }
+                }
               ],
-              "path": [
-                "packaging",
-                "{{year}}",
-                "aggregated-submissions"
-              ]
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/aggregated-submissions",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "aggregated-submissions"
+                  ]
+                },
+                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner or leaver code and date and its packaging in tonnes per material.\n\nThe stub has data for 2024 only."
+              },
+              "response": []
             },
-            "description": "Every approved submission for `{{year}}`, grouped by submitter."
-          },
-          "response": []
+            {
+              "name": "Year with no data (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/packaging/2023/aggregated-submissions",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "2023",
+                    "aggregated-submissions"
+                  ]
+                },
+                "description": "A year with no approved submissions returns 404 with a problem details body."
+              },
+              "response": []
+            },
+            {
+              "name": "Year is not a number (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 Not Found (the route does not match)', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/packaging/latest/aggregated-submissions",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "latest",
+                    "aggregated-submissions"
+                  ]
+                },
+                "description": "The year must be a number, so this route does not match."
+              },
+              "response": []
+            }
+          ]
         },
         {
-          "name": "Direct registrant",
-          "event": [
+          "name": "3. One submitter",
+          "description": "`GET /packaging/{year}/organisation/{organisationId}/aggregated-submission`. The organisations one submitter reported for, as `items`.",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "const checkOrganisation = (o) => {",
-                  "    pm.expect(o.organisationId).to.be.a('string');",
-                  "    [o.joinerCode, o.leaverCode].forEach(code => pm.expect(code === null || typeof code === 'number', 'codes are numbers or null').to.be.true);",
-                  "    [o.joinerDate, o.leaverDate].forEach(date => pm.expect(date === null || /^\\d{4}-\\d{2}-\\d{2}$/.test(date), 'dates are yyyy-MM-dd or null').to.be.true);",
-                  "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
-                  "    o.materials.forEach(m => {",
-                  "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
-                  "        pm.expect(m.tonnes).to.be.a('number');",
-                  "    });",
-                  "};",
-                  "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
-                  "pm.test('One organisation, the direct registrant itself', () => {",
-                  "    pm.expect(body.items).to.have.lengthOf(1);",
-                  "    pm.expect(body.items[0].organisationId).to.eql(pm.collectionVariables.get('directRegistrantId'));",
-                  "    checkOrganisation(body.items[0]);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "x-api-key",
-                "value": "{{cdpApiKey}}"
-              }
-            ],
-            "url": {
-              "raw": "{{cdpBaseUrl}}/packaging/{{year}}/organisation/{{directRegistrantId}}/aggregated-submission",
-              "host": [
-                "{{cdpBaseUrl}}"
+              "name": "Direct registrant",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "const checkOrganisation = (o) => {",
+                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "    [o.joinerCode, o.leaverCode].forEach(code => pm.expect(code === null || typeof code === 'number', 'codes are numbers or null').to.be.true);",
+                      "    [o.joinerDate, o.leaverDate].forEach(date => pm.expect(date === null || /^\\d{4}-\\d{2}-\\d{2}$/.test(date), 'dates are yyyy-MM-dd or null').to.be.true);",
+                      "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
+                      "    o.materials.forEach(m => {",
+                      "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
+                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "    });",
+                      "};",
+                      "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
+                      "pm.test('One organisation, the direct registrant itself', () => {",
+                      "    pm.expect(body.items).to.have.lengthOf(1);",
+                      "    pm.expect(body.items[0].organisationId).to.eql(pm.variables.get('directRegistrantId'));",
+                      "    checkOrganisation(body.items[0]);",
+                      "});"
+                    ]
+                  }
+                }
               ],
-              "path": [
-                "packaging",
-                "{{year}}",
-                "organisation",
-                "{{directRegistrantId}}",
-                "aggregated-submission"
-              ]
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/organisation/{{directRegistrantId}}/aggregated-submission",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "organisation",
+                    "{{directRegistrantId}}",
+                    "aggregated-submission"
+                  ]
+                },
+                "description": "A direct registrant reports for itself, so `items` holds one organisation: the registrant."
+              },
+              "response": []
             },
-            "description": "The organisations for one submitter, as `items`."
-          },
-          "response": []
+            {
+              "name": "Compliance scheme (members joining and leaving)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "const checkOrganisation = (o) => {",
+                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "    [o.joinerCode, o.leaverCode].forEach(code => pm.expect(code === null || typeof code === 'number', 'codes are numbers or null').to.be.true);",
+                      "    [o.joinerDate, o.leaverDate].forEach(date => pm.expect(date === null || /^\\d{4}-\\d{2}-\\d{2}$/.test(date), 'dates are yyyy-MM-dd or null').to.be.true);",
+                      "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
+                      "    o.materials.forEach(m => {",
+                      "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
+                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "    });",
+                      "};",
+                      "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
+                      "pm.test('One item per scheme member', () => {",
+                      "    pm.expect(body.items).to.have.lengthOf(3);",
+                      "    body.items.forEach(checkOrganisation);",
+                      "});",
+                      "pm.test('A member that joined has joiner code 3 and a joiner date', () => {",
+                      "    const joiner = body.items.find(o => o.joinerCode !== null);",
+                      "    pm.expect(joiner.joinerCode).to.eql(3);",
+                      "    pm.expect(joiner.joinerDate).to.eql('2025-07-05');",
+                      "});",
+                      "pm.test('A member that left has leaver code 13 and a leaver date', () => {",
+                      "    const leaver = body.items.find(o => o.leaverCode !== null);",
+                      "    pm.expect(leaver.leaverCode).to.eql(13);",
+                      "    pm.expect(leaver.leaverDate).to.eql('2025-09-30');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/organisation/{{complianceSchemeId}}/aggregated-submission",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "organisation",
+                    "{{complianceSchemeId}}",
+                    "aggregated-submission"
+                  ]
+                },
+                "description": "A compliance scheme returns one item per member. In the stub data one member joined part-way through the year (joiner code 3) and one resigned (leaver code 13). Codes are numbered as in the GOV.UK registration file guidance."
+              },
+              "response": []
+            },
+            {
+              "name": "Unknown organisation (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/organisation/99999999-9999-4999-8999-999999999999/aggregated-submission",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "organisation",
+                    "99999999-9999-4999-8999-999999999999",
+                    "aggregated-submission"
+                  ]
+                },
+                "description": "An organisation with no approved submissions returns 404 with a problem details body."
+              },
+              "response": []
+            },
+            {
+              "name": "Year with no data (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/packaging/2023/organisation/{{directRegistrantId}}/aggregated-submission",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "2023",
+                    "organisation",
+                    "{{directRegistrantId}}",
+                    "aggregated-submission"
+                  ]
+                },
+                "description": "A known organisation in a year with no data returns 404."
+              },
+              "response": []
+            },
+            {
+              "name": "Organisation ID is not a GUID (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 Not Found (the route does not match)', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/organisation/100123/aggregated-submission",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "organisation",
+                    "100123",
+                    "aggregated-submission"
+                  ]
+                },
+                "description": "The organisation ID is the GUID (the external ID), not the 6-digit reference number, so this route does not match."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "4. API documentation",
+          "description": "Served wherever Swagger is turned on: locally, and in dev and test.",
+          "item": [
+            {
+              "name": "OpenAPI document",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Describes both packaging endpoints', () => {",
+                      "    const paths = Object.keys(pm.response.json().paths);",
+                      "    pm.expect(paths).to.include('/packaging/{year}/aggregated-submissions');",
+                      "    pm.expect(paths).to.include('/packaging/{year}/organisation/{organisationId}/aggregated-submission');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/openapi/v1.json",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "openapi",
+                    "v1.json"
+                  ]
+                },
+                "description": "The machine-readable contract. Save the response to import it into Postman or another OpenAPI tool."
+              },
+              "response": []
+            },
+            {
+              "name": "Swagger UI page",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Is the Swagger UI page', () => pm.expect(pm.response.text()).to.include('swagger-ui'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/swagger/index.html",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "swagger",
+                    "index.html"
+                  ]
+                },
+                "description": "The Swagger page. Locally, open it in a browser instead. In CDP a browser cannot send the API key, so this request only proves the page is served."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     }
@@ -689,6 +1214,14 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:8085"
+    },
+    {
+      "key": "cdpBaseUrl",
+      "value": "https://ephemeral-protected.api.dev.cdp-int.defra.cloud/waste-submit-reg-packaging-api"
+    },
+    {
+      "key": "cdpApiKey",
+      "value": ""
     },
     {
       "key": "year",
@@ -701,14 +1234,6 @@
     {
       "key": "complianceSchemeId",
       "value": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-    },
-    {
-      "key": "cdpBaseUrl",
-      "value": "https://ephemeral-protected.api.dev.cdp-int.defra.cloud/waste-submit-reg-packaging-api"
-    },
-    {
-      "key": "cdpApiKey",
-      "value": ""
     }
   ]
 }
