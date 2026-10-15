@@ -36,7 +36,7 @@ public class ObligationsEndpointsTest
         var materials = item.GetProperty("materials").EnumerateArray().ToList();
         Assert.Equal(3, materials.Count);
         Assert.Equal("PL", materials[0].GetProperty("materialCode").GetString());
-        Assert.Equal(412.35m, materials[0].GetProperty("tonnes").GetDecimal());
+        Assert.Equal(412350L, materials[0].GetProperty("kilograms").GetInt64());
     }
 
     [Fact]

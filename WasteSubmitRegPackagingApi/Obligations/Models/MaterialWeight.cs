@@ -10,9 +10,9 @@ public class MaterialWeight
     public required string MaterialCode { get; init; }
 
     /// <summary>
-    /// Tonnes, totalled across the accepted H1 and H2 submissions. The packaging data file holds kilograms.
-    /// Whether this should be whole or decimal, and gross or net of transitional packaging, is still to be confirmed.
+    /// Kilograms, totalled across the accepted H1 and H2 submissions. The packaging data file only accepts whole
+    /// kilograms, so the total is whole too. Whether this is gross or net of transitional packaging is still to be confirmed.
     /// </summary>
-    [Description("Tonnes, totalled across the accepted H1 and H2 submissions.")]
-    public required decimal Tonnes { get; init; }
+    [Description("Kilograms, totalled across the accepted H1 and H2 submissions. Always a whole number.")]
+    public required long Kilograms { get; init; }
 }
