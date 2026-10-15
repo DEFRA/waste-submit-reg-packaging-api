@@ -24,9 +24,9 @@ internal static class ApprovedSubmissionsFixtures
         AggregatedPackaging =
         [
             Organisation(DirectRegistrantId, events: [],
-                Material("PL", 412.35m),
-                Material("PC", 655.12m),
-                Material("GL", 167.8m))
+                Material("PL", 412350),
+                Material("PC", 655120),
+                Material("GL", 167800))
         ]
     };
 
@@ -37,20 +37,20 @@ internal static class ApprovedSubmissionsFixtures
         AggregatedPackaging =
         [
             Organisation(Guid.Parse("22222222-2222-4222-8222-222222222222"), events: [],
-                Material("PL", 100m),
-                Material("WD", 50m),
-                Material("AL", 25m),
-                Material("ST", 40m),
-                Material("PC", 150m),
-                Material("GL", 200m),
-                Material("FC", 30m)),
+                Material("PL", 100000),
+                Material("WD", 50000),
+                Material("AL", 25000),
+                Material("ST", 40000),
+                Material("PC", 150000),
+                Material("GL", 200000),
+                Material("FC", 30000)),
             // Joined the scheme part-way through the relevant year (2025).
             Organisation(Guid.Parse("33333333-3333-4333-8333-333333333333"), events: [Event("03", new DateOnly(2025, 7, 5))],
-                Material("PL", 75m),
-                Material("PC", 120m)),
+                Material("PL", 75000),
+                Material("PC", 120000)),
             // Resigned from the scheme part-way through the relevant year.
             Organisation(Guid.Parse("44444444-4444-4444-8444-444444444444"), events: [Event("13", new DateOnly(2025, 9, 30))],
-                Material("GL", 64m)),
+                Material("GL", 64000)),
             // Joined, resigned and rejoined within the relevant year.
             Organisation(Guid.Parse("55555555-5555-4555-8555-555555555555"),
                 events:
@@ -59,8 +59,8 @@ internal static class ApprovedSubmissionsFixtures
                     Event("13", new DateOnly(2025, 7, 14)),
                     Event("01", new DateOnly(2025, 10, 1))
                 ],
-                Material("PL", 40m),
-                Material("GL", 22m))
+                Material("PL", 40000),
+                Material("GL", 22000))
         ]
     };
 
@@ -83,6 +83,6 @@ internal static class ApprovedSubmissionsFixtures
         return new LeaverJoinerEvent { Code = code.Code, Action = code.Action, Date = date };
     }
 
-    private static MaterialWeight Material(string materialCode, decimal tonnes) =>
-        new() { MaterialCode = materialCode, Tonnes = tonnes };
+    private static MaterialWeight Material(string materialCode, long kilograms) =>
+        new() { MaterialCode = materialCode, Kilograms = kilograms };
 }

@@ -30,7 +30,7 @@ can build against them while the real data source is wired in. The service is co
 | `GET /swagger`, `GET /openapi/v1.json` | The API documentation, where Swagger is turned on |
 
 Both packaging endpoints return 404 when there is nothing for the year or organisation. Each organisation carries its
-packaging in tonnes per material, and its `events`: every time it joined or left during the year, oldest first.
+packaging in whole kilograms per material, and its `events`: every time it joined or left during the year, oldest first.
 
 ```json
 "events": [

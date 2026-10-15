@@ -104,7 +104,7 @@
                       "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
                       "    o.materials.forEach(m => {",
                       "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
-                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "        pm.expect(Number.isInteger(m.kilograms), 'kilograms is a whole number').to.be.true;",
                       "    });",
                       "};",
                       "pm.test('Top level is approvedSubmissions only', () => pm.expect(Object.keys(body)).to.eql(['approvedSubmissions']));",
@@ -134,7 +134,7 @@
                     "aggregated-submissions"
                   ]
                 },
-                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in tonnes per material.\n\nThe stub has data for 2024 only."
+                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
               },
               "response": [
                 {
@@ -153,7 +153,7 @@
                         "aggregated-submissions"
                       ]
                     },
-                    "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in tonnes per material.\n\nThe stub has data for 2024 only."
+                    "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
                   },
                   "status": "OK",
                   "code": 200,
@@ -164,7 +164,7 @@
                       "value": "application/json; charset=utf-8"
                     }
                   ],
-                  "body": "{\n  \"approvedSubmissions\": [\n    {\n      \"submitterId\": \"11111111-1111-4111-8111-111111111111\",\n      \"submitterType\": \"DirectRegistrant\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"11111111-1111-4111-8111-111111111111\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"tonnes\": 412.35\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"tonnes\": 655.12\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"tonnes\": 167.8\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"submitterId\": \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\n      \"submitterType\": \"ComplianceScheme\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"22222222-2222-4222-8222-222222222222\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"tonnes\": 100\n            },\n            {\n              \"materialCode\": \"WD\",\n              \"tonnes\": 50\n            },\n            {\n              \"materialCode\": \"AL\",\n              \"tonnes\": 25\n            },\n            {\n              \"materialCode\": \"ST\",\n              \"tonnes\": 40\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"tonnes\": 150\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"tonnes\": 200\n            },\n            {\n              \"materialCode\": \"FC\",\n              \"tonnes\": 30\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"33333333-3333-4333-8333-333333333333\",\n          \"events\": [\n            {\n              \"code\": 3,\n              \"action\": \"Joined\",\n              \"date\": \"2025-07-05\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"tonnes\": 75\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"tonnes\": 120\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"44444444-4444-4444-8444-444444444444\",\n          \"events\": [\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-09-30\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"GL\",\n              \"tonnes\": 64\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"55555555-5555-4555-8555-555555555555\",\n          \"events\": [\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-03-03\"\n            },\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-07-14\"\n            },\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-10-01\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"tonnes\": 40\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"tonnes\": 22\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+                  "body": "{\n  \"approvedSubmissions\": [\n    {\n      \"submitterId\": \"11111111-1111-4111-8111-111111111111\",\n      \"submitterType\": \"DirectRegistrant\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"11111111-1111-4111-8111-111111111111\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 412350\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 655120\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 167800\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"submitterId\": \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\n      \"submitterType\": \"ComplianceScheme\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"22222222-2222-4222-8222-222222222222\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 100000\n            },\n            {\n              \"materialCode\": \"WD\",\n              \"kilograms\": 50000\n            },\n            {\n              \"materialCode\": \"AL\",\n              \"kilograms\": 25000\n            },\n            {\n              \"materialCode\": \"ST\",\n              \"kilograms\": 40000\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 150000\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 200000\n            },\n            {\n              \"materialCode\": \"FC\",\n              \"kilograms\": 30000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"33333333-3333-4333-8333-333333333333\",\n          \"events\": [\n            {\n              \"code\": 3,\n              \"action\": \"Joined\",\n              \"date\": \"2025-07-05\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 75000\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 120000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"44444444-4444-4444-8444-444444444444\",\n          \"events\": [\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-09-30\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 64000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"55555555-5555-4555-8555-555555555555\",\n          \"events\": [\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-03-03\"\n            },\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-07-14\"\n            },\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-10-01\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 40000\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 22000\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
                 }
               ]
             },
@@ -290,7 +290,7 @@
                       "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
                       "    o.materials.forEach(m => {",
                       "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
-                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "        pm.expect(Number.isInteger(m.kilograms), 'kilograms is a whole number').to.be.true;",
                       "    });",
                       "};",
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
@@ -352,7 +352,7 @@
                       "value": "application/json; charset=utf-8"
                     }
                   ],
-                  "body": "{\n  \"items\": [\n    {\n      \"organisationId\": \"11111111-1111-4111-8111-111111111111\",\n      \"events\": [],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"tonnes\": 412.35\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"tonnes\": 655.12\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"tonnes\": 167.8\n        }\n      ]\n    }\n  ]\n}"
+                  "body": "{\n  \"items\": [\n    {\n      \"organisationId\": \"11111111-1111-4111-8111-111111111111\",\n      \"events\": [],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 412350\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"kilograms\": 655120\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 167800\n        }\n      ]\n    }\n  ]\n}"
                 }
               ]
             },
@@ -379,7 +379,7 @@
                       "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
                       "    o.materials.forEach(m => {",
                       "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
-                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "        pm.expect(Number.isInteger(m.kilograms), 'kilograms is a whole number').to.be.true;",
                       "    });",
                       "};",
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
@@ -453,7 +453,7 @@
                       "value": "application/json; charset=utf-8"
                     }
                   ],
-                  "body": "{\n  \"items\": [\n    {\n      \"organisationId\": \"22222222-2222-4222-8222-222222222222\",\n      \"events\": [],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"tonnes\": 100\n        },\n        {\n          \"materialCode\": \"WD\",\n          \"tonnes\": 50\n        },\n        {\n          \"materialCode\": \"AL\",\n          \"tonnes\": 25\n        },\n        {\n          \"materialCode\": \"ST\",\n          \"tonnes\": 40\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"tonnes\": 150\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"tonnes\": 200\n        },\n        {\n          \"materialCode\": \"FC\",\n          \"tonnes\": 30\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"33333333-3333-4333-8333-333333333333\",\n      \"events\": [\n        {\n          \"code\": 3,\n          \"action\": \"Joined\",\n          \"date\": \"2025-07-05\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"tonnes\": 75\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"tonnes\": 120\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"44444444-4444-4444-8444-444444444444\",\n      \"events\": [\n        {\n          \"code\": 13,\n          \"action\": \"Left\",\n          \"date\": \"2025-09-30\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"GL\",\n          \"tonnes\": 64\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"55555555-5555-4555-8555-555555555555\",\n      \"events\": [\n        {\n          \"code\": 1,\n          \"action\": \"Joined\",\n          \"date\": \"2025-03-03\"\n        },\n        {\n          \"code\": 13,\n          \"action\": \"Left\",\n          \"date\": \"2025-07-14\"\n        },\n        {\n          \"code\": 1,\n          \"action\": \"Joined\",\n          \"date\": \"2025-10-01\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"tonnes\": 40\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"tonnes\": 22\n        }\n      ]\n    }\n  ]\n}"
+                  "body": "{\n  \"items\": [\n    {\n      \"organisationId\": \"22222222-2222-4222-8222-222222222222\",\n      \"events\": [],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 100000\n        },\n        {\n          \"materialCode\": \"WD\",\n          \"kilograms\": 50000\n        },\n        {\n          \"materialCode\": \"AL\",\n          \"kilograms\": 25000\n        },\n        {\n          \"materialCode\": \"ST\",\n          \"kilograms\": 40000\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"kilograms\": 150000\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 200000\n        },\n        {\n          \"materialCode\": \"FC\",\n          \"kilograms\": 30000\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"33333333-3333-4333-8333-333333333333\",\n      \"events\": [\n        {\n          \"code\": 3,\n          \"action\": \"Joined\",\n          \"date\": \"2025-07-05\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 75000\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"kilograms\": 120000\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"44444444-4444-4444-8444-444444444444\",\n      \"events\": [\n        {\n          \"code\": 13,\n          \"action\": \"Left\",\n          \"date\": \"2025-09-30\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 64000\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"55555555-5555-4555-8555-555555555555\",\n      \"events\": [\n        {\n          \"code\": 1,\n          \"action\": \"Joined\",\n          \"date\": \"2025-03-03\"\n        },\n        {\n          \"code\": 13,\n          \"action\": \"Left\",\n          \"date\": \"2025-07-14\"\n        },\n        {\n          \"code\": 1,\n          \"action\": \"Joined\",\n          \"date\": \"2025-10-01\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 40000\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 22000\n        }\n      ]\n    }\n  ]\n}"
                 }
               ]
             },
@@ -799,7 +799,7 @@
                       "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
                       "    o.materials.forEach(m => {",
                       "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
-                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "        pm.expect(Number.isInteger(m.kilograms), 'kilograms is a whole number').to.be.true;",
                       "    });",
                       "};",
                       "pm.test('Top level is approvedSubmissions only', () => pm.expect(Object.keys(body)).to.eql(['approvedSubmissions']));",
@@ -834,7 +834,7 @@
                     "aggregated-submissions"
                   ]
                 },
-                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in tonnes per material.\n\nThe stub has data for 2024 only."
+                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
               },
               "response": []
             },
@@ -940,7 +940,7 @@
                       "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
                       "    o.materials.forEach(m => {",
                       "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
-                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "        pm.expect(Number.isInteger(m.kilograms), 'kilograms is a whole number').to.be.true;",
                       "    });",
                       "};",
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
@@ -1002,7 +1002,7 @@
                       "    pm.expect(o.materials).to.be.an('array').that.is.not.empty;",
                       "    o.materials.forEach(m => {",
                       "        pm.expect(m.materialCode).to.match(/^[A-Z]{2}$/);",
-                      "        pm.expect(m.tonnes).to.be.a('number');",
+                      "        pm.expect(Number.isInteger(m.kilograms), 'kilograms is a whole number').to.be.true;",
                       "    });",
                       "};",
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
