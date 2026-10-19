@@ -79,7 +79,7 @@
         },
         {
           "name": "2. Every approved submission for a year",
-          "description": "`GET /packaging/{year}/aggregated-submissions`. Every approved submission for the year, grouped by submitter. Not paged.",
+          "description": "`GET /packaging/{year}/packaging-submissions?format=aggregated`. Every approved submission for the year, grouped by submitter. Not paged.",
           "item": [
             {
               "name": "All approved submissions",
@@ -107,9 +107,9 @@
                       "        pm.expect(Number.isInteger(m.kilograms), 'kilograms is a whole number').to.be.true;",
                       "    });",
                       "};",
-                      "pm.test('Top level is approvedSubmissions only', () => pm.expect(Object.keys(body)).to.eql(['approvedSubmissions']));",
+                      "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
                       "pm.test('Each submission has a submitter and its organisations', () => {",
-                      "    body.approvedSubmissions.forEach(s => {",
+                      "    body.items.forEach(s => {",
                       "        pm.expect(s.submitterId).to.be.a('string');",
                       "        pm.expect(['DirectRegistrant', 'ComplianceScheme']).to.include(s.submitterType);",
                       "        pm.expect(s.aggregatedPackaging).to.be.an('array').that.is.not.empty;",
@@ -124,14 +124,20 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/aggregated-submissions",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/packaging-submissions?format=aggregated",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "aggregated-submissions"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
@@ -143,14 +149,20 @@
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{baseUrl}}/packaging/{{year}}/aggregated-submissions",
+                      "raw": "{{baseUrl}}/packaging/{{year}}/packaging-submissions?format=aggregated",
                       "host": [
                         "{{baseUrl}}"
                       ],
                       "path": [
                         "packaging",
                         "{{year}}",
-                        "aggregated-submissions"
+                        "packaging-submissions"
+                      ],
+                      "query": [
+                        {
+                          "key": "format",
+                          "value": "aggregated"
+                        }
                       ]
                     },
                     "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
@@ -164,7 +176,7 @@
                       "value": "application/json; charset=utf-8"
                     }
                   ],
-                  "body": "{\n  \"approvedSubmissions\": [\n    {\n      \"submitterId\": \"11111111-1111-4111-8111-111111111111\",\n      \"submitterType\": \"DirectRegistrant\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"11111111-1111-4111-8111-111111111111\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 412350\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 655120\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 167800\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"submitterId\": \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\n      \"submitterType\": \"ComplianceScheme\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"22222222-2222-4222-8222-222222222222\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 100000\n            },\n            {\n              \"materialCode\": \"WD\",\n              \"kilograms\": 50000\n            },\n            {\n              \"materialCode\": \"AL\",\n              \"kilograms\": 25000\n            },\n            {\n              \"materialCode\": \"ST\",\n              \"kilograms\": 40000\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 150000\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 200000\n            },\n            {\n              \"materialCode\": \"FC\",\n              \"kilograms\": 30000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"33333333-3333-4333-8333-333333333333\",\n          \"events\": [\n            {\n              \"code\": 3,\n              \"action\": \"Joined\",\n              \"date\": \"2025-07-05\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 75000\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 120000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"44444444-4444-4444-8444-444444444444\",\n          \"events\": [\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-09-30\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 64000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"55555555-5555-4555-8555-555555555555\",\n          \"events\": [\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-03-03\"\n            },\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-07-14\"\n            },\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-10-01\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 40000\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 22000\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+                  "body": "{\n  \"items\": [\n    {\n      \"submitterId\": \"11111111-1111-4111-8111-111111111111\",\n      \"submitterType\": \"DirectRegistrant\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"11111111-1111-4111-8111-111111111111\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 412350\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 655120\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 167800\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"submitterId\": \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\n      \"submitterType\": \"ComplianceScheme\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"22222222-2222-4222-8222-222222222222\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 100000\n            },\n            {\n              \"materialCode\": \"WD\",\n              \"kilograms\": 50000\n            },\n            {\n              \"materialCode\": \"AL\",\n              \"kilograms\": 25000\n            },\n            {\n              \"materialCode\": \"ST\",\n              \"kilograms\": 40000\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 150000\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 200000\n            },\n            {\n              \"materialCode\": \"FC\",\n              \"kilograms\": 30000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"33333333-3333-4333-8333-333333333333\",\n          \"events\": [\n            {\n              \"code\": 3,\n              \"action\": \"Joined\",\n              \"date\": \"2025-07-05\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 75000\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 120000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"44444444-4444-4444-8444-444444444444\",\n          \"events\": [\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-09-30\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 64000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"55555555-5555-4555-8555-555555555555\",\n          \"events\": [\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-03-03\"\n            },\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-07-14\"\n            },\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-10-01\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 40000\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 22000\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
                 }
               ]
             },
@@ -186,14 +198,20 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/2023/aggregated-submissions",
+                  "raw": "{{baseUrl}}/packaging/2023/packaging-submissions?format=aggregated",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "2023",
-                    "aggregated-submissions"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "A year with no approved submissions returns 404 with a problem details body."
@@ -205,14 +223,20 @@
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{baseUrl}}/packaging/2023/aggregated-submissions",
+                      "raw": "{{baseUrl}}/packaging/2023/packaging-submissions?format=aggregated",
                       "host": [
                         "{{baseUrl}}"
                       ],
                       "path": [
                         "packaging",
                         "2023",
-                        "aggregated-submissions"
+                        "packaging-submissions"
+                      ],
+                      "query": [
+                        {
+                          "key": "format",
+                          "value": "aggregated"
+                        }
                       ]
                     },
                     "description": "A year with no approved submissions returns 404 with a problem details body."
@@ -227,6 +251,68 @@
                     }
                   ],
                   "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\n  \"title\": \"Approved submissions not found\",\n  \"status\": 404,\n  \"detail\": \"No approved submissions in 2023\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "Format missing (400)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+                      "pm.test('Says format must be aggregated', () => pm.expect(pm.response.json().errors.format).to.eql(['Use format=aggregated. It is the only format for now.']));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/packaging/{{year}}/packaging-submissions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "packaging-submissions"
+                  ]
+                },
+                "description": "`format` is required, and `aggregated` is the only value for now. Leaving it out, or sending anything else, returns 400 with a validation problem body."
+              },
+              "response": [
+                {
+                  "name": "400: format missing",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/packaging/{{year}}/packaging-submissions",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "packaging",
+                        "{{year}}",
+                        "packaging-submissions"
+                      ]
+                    },
+                    "description": "`format` is required, and `aggregated` is the only value for now. Leaving it out, or sending anything else, returns 400 with a validation problem body."
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\n  \"title\": \"One or more validation errors occurred.\",\n  \"status\": 400,\n  \"errors\": {\n    \"format\": [\n      \"Use format=aggregated. It is the only format for now.\"\n    ]\n  },\n  \"traceId\": \"00-9075a44d35cd3cde16130b4462c03851-76a5147733f21294-00\"\n}"
                 }
               ]
             },
@@ -247,14 +333,20 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/latest/aggregated-submissions",
+                  "raw": "{{baseUrl}}/packaging/latest/packaging-submissions?format=aggregated",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "latest",
-                    "aggregated-submissions"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "The year must be a number, so this route does not match."
@@ -265,7 +357,7 @@
         },
         {
           "name": "3. One submitter",
-          "description": "`GET /packaging/{year}/organisation/{organisationId}/aggregated-submission`. The organisations one submitter reported for, as `items`.",
+          "description": "`GET /packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions?format=aggregated`. The organisations one submitter reported for, as `items`.",
           "item": [
             {
               "name": "Direct registrant",
@@ -308,16 +400,22 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/organisation/{{directRegistrantId}}/aggregated-submission",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{directRegistrantId}}/packaging-submissions?format=aggregated",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "organisation",
+                    "submitter-organisation",
                     "{{directRegistrantId}}",
-                    "aggregated-submission"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "A direct registrant reports for itself, so `items` holds one organisation: the registrant."
@@ -329,16 +427,22 @@
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{baseUrl}}/packaging/{{year}}/organisation/{{directRegistrantId}}/aggregated-submission",
+                      "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{directRegistrantId}}/packaging-submissions?format=aggregated",
                       "host": [
                         "{{baseUrl}}"
                       ],
                       "path": [
                         "packaging",
                         "{{year}}",
-                        "organisation",
+                        "submitter-organisation",
                         "{{directRegistrantId}}",
-                        "aggregated-submission"
+                        "packaging-submissions"
+                      ],
+                      "query": [
+                        {
+                          "key": "format",
+                          "value": "aggregated"
+                        }
                       ]
                     },
                     "description": "A direct registrant reports for itself, so `items` holds one organisation: the registrant."
@@ -409,16 +513,22 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/organisation/{{complianceSchemeId}}/aggregated-submission",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{complianceSchemeId}}/packaging-submissions?format=aggregated",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "organisation",
+                    "submitter-organisation",
                     "{{complianceSchemeId}}",
-                    "aggregated-submission"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "A compliance scheme returns one item per member, each with its `events`: every time it joined or left during the year, oldest first. In the stub data one member joined (code 3), one resigned (code 13), and one joined, resigned and rejoined (codes 1, 13, 1). Codes are numbered as in the GOV.UK registration file guidance, and `action` is `Joined` or `Left`."
@@ -430,16 +540,22 @@
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{baseUrl}}/packaging/{{year}}/organisation/{{complianceSchemeId}}/aggregated-submission",
+                      "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{complianceSchemeId}}/packaging-submissions?format=aggregated",
                       "host": [
                         "{{baseUrl}}"
                       ],
                       "path": [
                         "packaging",
                         "{{year}}",
-                        "organisation",
+                        "submitter-organisation",
                         "{{complianceSchemeId}}",
-                        "aggregated-submission"
+                        "packaging-submissions"
+                      ],
+                      "query": [
+                        {
+                          "key": "format",
+                          "value": "aggregated"
+                        }
                       ]
                     },
                     "description": "A compliance scheme returns one item per member, each with its `events`: every time it joined or left during the year, oldest first. In the stub data one member joined (code 3), one resigned (code 13), and one joined, resigned and rejoined (codes 1, 13, 1). Codes are numbered as in the GOV.UK registration file guidance, and `action` is `Joined` or `Left`."
@@ -475,16 +591,22 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/organisation/99999999-9999-4999-8999-999999999999/aggregated-submission",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/99999999-9999-4999-8999-999999999999/packaging-submissions?format=aggregated",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "organisation",
+                    "submitter-organisation",
                     "99999999-9999-4999-8999-999999999999",
-                    "aggregated-submission"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "An organisation with no approved submissions returns 404 with a problem details body."
@@ -496,16 +618,22 @@
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{baseUrl}}/packaging/{{year}}/organisation/99999999-9999-4999-8999-999999999999/aggregated-submission",
+                      "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/99999999-9999-4999-8999-999999999999/packaging-submissions?format=aggregated",
                       "host": [
                         "{{baseUrl}}"
                       ],
                       "path": [
                         "packaging",
                         "{{year}}",
-                        "organisation",
+                        "submitter-organisation",
                         "99999999-9999-4999-8999-999999999999",
-                        "aggregated-submission"
+                        "packaging-submissions"
+                      ],
+                      "query": [
+                        {
+                          "key": "format",
+                          "value": "aggregated"
+                        }
                       ]
                     },
                     "description": "An organisation with no approved submissions returns 404 with a problem details body."
@@ -541,16 +669,22 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/2023/organisation/{{directRegistrantId}}/aggregated-submission",
+                  "raw": "{{baseUrl}}/packaging/2023/submitter-organisation/{{directRegistrantId}}/packaging-submissions?format=aggregated",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "2023",
-                    "organisation",
+                    "submitter-organisation",
                     "{{directRegistrantId}}",
-                    "aggregated-submission"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "A known organisation in a year with no data returns 404."
@@ -574,16 +708,22 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/organisation/100123/aggregated-submission",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/100123/packaging-submissions?format=aggregated",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "organisation",
+                    "submitter-organisation",
                     "100123",
-                    "aggregated-submission"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "The organisation ID is the GUID (the external ID), not the 6-digit reference number, so this route does not match."
@@ -607,8 +747,8 @@
                       "pm.test('200 OK', () => pm.response.to.have.status(200));",
                       "pm.test('Describes both packaging endpoints', () => {",
                       "    const paths = Object.keys(pm.response.json().paths);",
-                      "    pm.expect(paths).to.include('/packaging/{year}/aggregated-submissions');",
-                      "    pm.expect(paths).to.include('/packaging/{year}/organisation/{organisationId}/aggregated-submission');",
+                      "    pm.expect(paths).to.include('/packaging/{year}/packaging-submissions');",
+                      "    pm.expect(paths).to.include('/packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions');",
                       "});"
                     ]
                   }
@@ -774,7 +914,7 @@
         },
         {
           "name": "2. Every approved submission for a year",
-          "description": "`GET /packaging/{year}/aggregated-submissions`. Every approved submission for the year, grouped by submitter. Not paged.",
+          "description": "`GET /packaging/{year}/packaging-submissions?format=aggregated`. Every approved submission for the year, grouped by submitter. Not paged.",
           "item": [
             {
               "name": "All approved submissions",
@@ -802,9 +942,9 @@
                       "        pm.expect(Number.isInteger(m.kilograms), 'kilograms is a whole number').to.be.true;",
                       "    });",
                       "};",
-                      "pm.test('Top level is approvedSubmissions only', () => pm.expect(Object.keys(body)).to.eql(['approvedSubmissions']));",
+                      "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
                       "pm.test('Each submission has a submitter and its organisations', () => {",
-                      "    body.approvedSubmissions.forEach(s => {",
+                      "    body.items.forEach(s => {",
                       "        pm.expect(s.submitterId).to.be.a('string');",
                       "        pm.expect(['DirectRegistrant', 'ComplianceScheme']).to.include(s.submitterType);",
                       "        pm.expect(s.aggregatedPackaging).to.be.an('array').that.is.not.empty;",
@@ -824,14 +964,20 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/aggregated-submissions",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/packaging-submissions?format=aggregated",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "aggregated-submissions"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
@@ -861,17 +1007,60 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/2023/aggregated-submissions",
+                  "raw": "{{cdpBaseUrl}}/packaging/2023/packaging-submissions?format=aggregated",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "2023",
-                    "aggregated-submissions"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "A year with no approved submissions returns 404 with a problem details body."
+              },
+              "response": []
+            },
+            {
+              "name": "Format missing (400)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+                      "pm.test('Says format must be aggregated', () => pm.expect(pm.response.json().errors.format).to.eql(['Use format=aggregated. It is the only format for now.']));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/packaging-submissions",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "packaging-submissions"
+                  ]
+                },
+                "description": "`format` is required, and `aggregated` is the only value for now. Leaving it out, or sending anything else, returns 400 with a validation problem body."
               },
               "response": []
             },
@@ -897,14 +1086,20 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/latest/aggregated-submissions",
+                  "raw": "{{cdpBaseUrl}}/packaging/latest/packaging-submissions?format=aggregated",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "latest",
-                    "aggregated-submissions"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "The year must be a number, so this route does not match."
@@ -915,7 +1110,7 @@
         },
         {
           "name": "3. One submitter",
-          "description": "`GET /packaging/{year}/organisation/{organisationId}/aggregated-submission`. The organisations one submitter reported for, as `items`.",
+          "description": "`GET /packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions?format=aggregated`. The organisations one submitter reported for, as `items`.",
           "item": [
             {
               "name": "Direct registrant",
@@ -963,16 +1158,22 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/organisation/{{directRegistrantId}}/aggregated-submission",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/{{directRegistrantId}}/packaging-submissions?format=aggregated",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "organisation",
+                    "submitter-organisation",
                     "{{directRegistrantId}}",
-                    "aggregated-submission"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "A direct registrant reports for itself, so `items` holds one organisation: the registrant."
@@ -1037,16 +1238,22 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/organisation/{{complianceSchemeId}}/aggregated-submission",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/{{complianceSchemeId}}/packaging-submissions?format=aggregated",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "organisation",
+                    "submitter-organisation",
                     "{{complianceSchemeId}}",
-                    "aggregated-submission"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "A compliance scheme returns one item per member, each with its `events`: every time it joined or left during the year, oldest first. In the stub data one member joined (code 3), one resigned (code 13), and one joined, resigned and rejoined (codes 1, 13, 1). Codes are numbered as in the GOV.UK registration file guidance, and `action` is `Joined` or `Left`."
@@ -1076,16 +1283,22 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/organisation/99999999-9999-4999-8999-999999999999/aggregated-submission",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/99999999-9999-4999-8999-999999999999/packaging-submissions?format=aggregated",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "organisation",
+                    "submitter-organisation",
                     "99999999-9999-4999-8999-999999999999",
-                    "aggregated-submission"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "An organisation with no approved submissions returns 404 with a problem details body."
@@ -1115,16 +1328,22 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/2023/organisation/{{directRegistrantId}}/aggregated-submission",
+                  "raw": "{{cdpBaseUrl}}/packaging/2023/submitter-organisation/{{directRegistrantId}}/packaging-submissions?format=aggregated",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "2023",
-                    "organisation",
+                    "submitter-organisation",
                     "{{directRegistrantId}}",
-                    "aggregated-submission"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "A known organisation in a year with no data returns 404."
@@ -1153,16 +1372,22 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/organisation/100123/aggregated-submission",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/100123/packaging-submissions?format=aggregated",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "organisation",
+                    "submitter-organisation",
                     "100123",
-                    "aggregated-submission"
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
                   ]
                 },
                 "description": "The organisation ID is the GUID (the external ID), not the 6-digit reference number, so this route does not match."
@@ -1186,8 +1411,8 @@
                       "pm.test('200 OK', () => pm.response.to.have.status(200));",
                       "pm.test('Describes both packaging endpoints', () => {",
                       "    const paths = Object.keys(pm.response.json().paths);",
-                      "    pm.expect(paths).to.include('/packaging/{year}/aggregated-submissions');",
-                      "    pm.expect(paths).to.include('/packaging/{year}/organisation/{organisationId}/aggregated-submission');",
+                      "    pm.expect(paths).to.include('/packaging/{year}/packaging-submissions');",
+                      "    pm.expect(paths).to.include('/packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions');",
                       "});"
                     ]
                   }

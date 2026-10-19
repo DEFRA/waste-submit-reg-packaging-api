@@ -23,13 +23,14 @@ can build against them while the real data source is wired in. The service is co
 
 | Endpoint | Returns |
 |---|---|
-| `GET /packaging/{year}/aggregated-submissions` | Every approved submission for the year, grouped by submitter. Not paged |
-| `GET /packaging/{year}/organisation/{organisationId}/aggregated-submission` | The organisations one submitter reported for: itself for a direct registrant, its members for a compliance scheme |
+| `GET /packaging/{year}/packaging-submissions?format=aggregated` | Every approved submission for the year, grouped by submitter. Not paged |
+| `GET /packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions?format=aggregated` | The organisations one submitter reported for: itself for a direct registrant, its members for a compliance scheme |
 | `GET /health` | Whether the service is running |
 | `GET /health/db` | Whether the service can reach Postgres |
 | `GET /swagger`, `GET /openapi/v1.json` | The API documentation, where Swagger is turned on |
 
-Both packaging endpoints return 404 when there is nothing for the year or organisation. Each organisation carries its
+Both packaging endpoints return their results under `items`, 404 when there is nothing for the year or organisation,
+and 400 unless `format` is `aggregated`, the only format for now. Each organisation carries its
 packaging in whole kilograms per material, and its `events`: every time it joined or left during the year, oldest first.
 
 ```json

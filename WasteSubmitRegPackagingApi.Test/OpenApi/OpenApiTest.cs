@@ -23,10 +23,10 @@ public class OpenApiTest
 
         Assert.Equal(
             "Every approved submission for a year",
-            paths.GetProperty("/packaging/{year}/aggregated-submissions").GetProperty("get").GetProperty("summary").GetString());
+            paths.GetProperty("/packaging/{year}/packaging-submissions").GetProperty("get").GetProperty("summary").GetString());
         Assert.Equal(
             "Approved packaging data for one submitter",
-            paths.GetProperty("/packaging/{year}/organisation/{organisationId}/aggregated-submission").GetProperty("get").GetProperty("summary").GetString());
+            paths.GetProperty("/packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions").GetProperty("get").GetProperty("summary").GetString());
     }
 
     [Fact]

@@ -9,7 +9,7 @@ public interface IApprovedSubmissionsProvider
         Guid organisationId,
         CancellationToken cancellationToken);
 
-    Task<ApprovedSubmissionsResponse?> GetAggregatedSubmissionsAsync(
+    Task<ItemsResponse<ApprovedSubmission>?> GetAggregatedSubmissionsAsync(
         int year,
         CancellationToken cancellationToken);
 }

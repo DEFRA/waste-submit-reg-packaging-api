@@ -23,7 +23,7 @@ public class StubApprovedSubmissionsProvider : IApprovedSubmissionsProvider
         return Task.FromResult(response);
     }
 
-    public Task<ApprovedSubmissionsResponse?> GetAggregatedSubmissionsAsync(
+    public Task<ItemsResponse<ApprovedSubmission>?> GetAggregatedSubmissionsAsync(
         int year,
         CancellationToken cancellationToken)
     {
@@ -31,7 +31,7 @@ public class StubApprovedSubmissionsProvider : IApprovedSubmissionsProvider
 
         var response = submissions is null
             ? null
-            : new ApprovedSubmissionsResponse { ApprovedSubmissions = submissions };
+            : new ItemsResponse<ApprovedSubmission> { Items = submissions };
 
         return Task.FromResult(response);
     }
