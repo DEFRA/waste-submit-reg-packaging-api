@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -19,7 +20,7 @@ public class ObligationsEndpointsTest
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            $"/packaging/2024/organisation/{DirectRegistrantId}/aggregated-submission", cancellationToken);
+            $"/packaging/2024/submitter-organisation/{DirectRegistrantId}/packaging-submissions?format=aggregated", cancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -47,7 +48,7 @@ public class ObligationsEndpointsTest
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            $"/packaging/2024/organisation/{ComplianceSchemeId}/aggregated-submission", cancellationToken);
+            $"/packaging/2024/submitter-organisation/{ComplianceSchemeId}/packaging-submissions?format=aggregated", cancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -73,7 +74,7 @@ public class ObligationsEndpointsTest
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            $"/packaging/2024/organisation/{ComplianceSchemeId}/aggregated-submission", cancellationToken);
+            $"/packaging/2024/submitter-organisation/{ComplianceSchemeId}/packaging-submissions?format=aggregated", cancellationToken);
 
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         var member = json.RootElement.GetProperty("items").EnumerateArray()
@@ -92,7 +93,7 @@ public class ObligationsEndpointsTest
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            $"/packaging/2024/organisation/{Guid.NewGuid()}/aggregated-submission", cancellationToken);
+            $"/packaging/2024/submitter-organisation/{Guid.NewGuid()}/packaging-submissions?format=aggregated", cancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 
@@ -109,7 +110,7 @@ public class ObligationsEndpointsTest
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            $"/packaging/2023/organisation/{DirectRegistrantId}/aggregated-submission", cancellationToken);
+            $"/packaging/2023/submitter-organisation/{DirectRegistrantId}/packaging-submissions?format=aggregated", cancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -121,16 +122,16 @@ public class ObligationsEndpointsTest
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/packaging/2024/aggregated-submissions", cancellationToken);
+        var response = await client.GetAsync("/packaging/2024/packaging-submissions?format=aggregated", cancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         var root = json.RootElement;
 
-        Assert.Equal(new[] { "approvedSubmissions" }, root.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(new[] { "items" }, root.EnumerateObject().Select(property => property.Name));
 
-        var submissions = root.GetProperty("approvedSubmissions").EnumerateArray().ToList();
+        var submissions = root.GetProperty("items").EnumerateArray().ToList();
         Assert.Equal(2, submissions.Count);
 
         var direct = submissions[0];
@@ -152,7 +153,7 @@ public class ObligationsEndpointsTest
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/packaging/2023/aggregated-submissions", cancellationToken);
+        var response = await client.GetAsync("/packaging/2023/packaging-submissions?format=aggregated", cancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -164,9 +165,29 @@ public class ObligationsEndpointsTest
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/packaging/latest/aggregated-submissions", cancellationToken);
+        var response = await client.GetAsync("/packaging/latest/packaging-submissions?format=aggregated", cancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/packaging/2024/packaging-submissions")]
+    [InlineData("/packaging/2024/packaging-submissions?format=detailed")]
+    [InlineData("/packaging/2024/submitter-organisation/" + DirectRegistrantId + "/packaging-submissions")]
+    [InlineData("/packaging/2024/submitter-organisation/" + DirectRegistrantId + "/packaging-submissions?format=detailed")]
+    public async Task Format_must_be_aggregated(string url)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync(url, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>(cancellationToken);
+        Assert.NotNull(problem);
+        Assert.Equal(["Use format=aggregated. It is the only format for now."], problem.Errors["format"]);
     }
 
     private static (int Code, string? Action, string? Date) Describe(JsonElement leaverJoinerEvent) =>
