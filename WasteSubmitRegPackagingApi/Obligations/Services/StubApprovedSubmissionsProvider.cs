@@ -13,26 +13,24 @@ public class StubApprovedSubmissionsProvider : IApprovedSubmissionsProvider
         Guid organisationId,
         CancellationToken cancellationToken)
     {
-        var submission = ApprovedSubmissionsFixtures.ForYear(year)?
+        if (!ApprovedSubmissionsFixtures.KnownSubmitterIds.Contains(organisationId))
+        {
+            return Task.FromResult<ItemsResponse<OrganisationPackaging>?>(null);
+        }
+
+        var submission = ApprovedSubmissionsFixtures.ForYear(year)
             .FirstOrDefault(approvedSubmission => approvedSubmission.SubmitterId == organisationId);
 
-        var response = submission is null
-            ? null
-            : new ItemsResponse<OrganisationPackaging> { Items = submission.AggregatedPackaging };
+        ItemsResponse<OrganisationPackaging>? response =
+            new ItemsResponse<OrganisationPackaging> { Items = submission?.AggregatedPackaging ?? [] };
 
         return Task.FromResult(response);
     }
 
-    public Task<ItemsResponse<ApprovedSubmission>?> GetAggregatedSubmissionsAsync(
+    public Task<ItemsResponse<ApprovedSubmission>> GetAggregatedSubmissionsAsync(
         int year,
         CancellationToken cancellationToken)
     {
-        var submissions = ApprovedSubmissionsFixtures.ForYear(year);
-
-        var response = submissions is null
-            ? null
-            : new ItemsResponse<ApprovedSubmission> { Items = submissions };
-
-        return Task.FromResult(response);
+        return Task.FromResult(new ItemsResponse<ApprovedSubmission> { Items = ApprovedSubmissionsFixtures.ForYear(year) });
     }
 }

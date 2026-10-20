@@ -23,15 +23,15 @@ public static class ObligationsEndpoints
             .WithSummary("Approved packaging data for one submitter")
             .WithDescription(
                 "The organisations one submitter reported for in the year: a direct registrant returns itself, " +
-                "a compliance scheme returns one item per member. Returns 404 when the submitter has no approved submission for the year, " +
-                "and 400 unless format is aggregated.");
+                "a compliance scheme returns one item per member. Returns empty items when the submitter has no approved submission " +
+                "for the year, 404 when the submitter organisation does not exist, and 400 unless format is aggregated.");
 
         group.MapGet("/packaging-submissions", GetAggregatedSubmissions)
             .WithName("GetAggregatedSubmissions")
             .WithSummary("Every approved submission for a year")
             .WithDescription(
                 "Every approved submission for the year, grouped by submitter. Not paged. " +
-                "Returns 404 when the year has no approved submissions, and 400 unless format is aggregated.");
+                "Returns empty items when the year has no approved submissions, and 400 unless format is aggregated.");
 
         return group;
     }
@@ -52,10 +52,15 @@ public static class ObligationsEndpoints
 
         return response is not null
             ? TypedResults.Ok(response)
-            : NotFoundProblem($"No approved submissions for organisation {organisationId} in {year}");
+            : TypedResults.NotFound(new ProblemDetails
+            {
+                Title = "Submitter organisation not found",
+                Detail = $"No submitter organisation with ID {organisationId}",
+                Status = StatusCodes.Status404NotFound
+            });
     }
 
-    private static async Task<Results<Ok<ItemsResponse<ApprovedSubmission>>, NotFound<ProblemDetails>, ValidationProblem>> GetAggregatedSubmissions(
+    private static async Task<Results<Ok<ItemsResponse<ApprovedSubmission>>, ValidationProblem>> GetAggregatedSubmissions(
         [FromRoute, Description("The packaging year, for example 2024.")] int year,
         [FromQuery, Required, Description("How the submissions are returned. Only aggregated for now.")] string? format,
         [FromServices] IApprovedSubmissionsProvider approvedSubmissionsProvider,
@@ -66,11 +71,7 @@ public static class ObligationsEndpoints
             return formatProblem;
         }
 
-        var response = await approvedSubmissionsProvider.GetAggregatedSubmissionsAsync(year, cancellationToken);
-
-        return response is not null
-            ? TypedResults.Ok(response)
-            : NotFoundProblem($"No approved submissions in {year}");
+        return TypedResults.Ok(await approvedSubmissionsProvider.GetAggregatedSubmissionsAsync(year, cancellationToken));
     }
 
     private static ValidationProblem? UnsupportedFormat(string? format) =>
@@ -80,12 +81,4 @@ public static class ObligationsEndpoints
             {
                 ["format"] = [$"Use format={AggregatedFormat}. It is the only format for now."]
             });
-
-    private static NotFound<ProblemDetails> NotFoundProblem(string detail) =>
-        TypedResults.NotFound(new ProblemDetails
-        {
-            Title = "Approved submissions not found",
-            Detail = detail,
-            Status = StatusCodes.Status404NotFound
-        });
 }

@@ -3,7 +3,8 @@ using WasteSubmitRegPackagingApi.Obligations.Models;
 namespace WasteSubmitRegPackagingApi.Obligations.Services;
 
 /// <summary>
-/// Example data for packaging year 2024: a direct registrant and a compliance scheme.
+/// Example data for packaging year 2024: a direct registrant and a compliance scheme, plus a known direct
+/// registrant with no approved submissions, which returns an empty list rather than 404.
 /// Codes are given as the raw registration file values and go through the mapper, as real data will.
 /// </summary>
 internal static class ApprovedSubmissionsFixtures
@@ -14,8 +15,13 @@ internal static class ApprovedSubmissionsFixtures
 
     public static Guid ComplianceSchemeId { get; } = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 
-    public static IReadOnlyList<ApprovedSubmission>? ForYear(int year) =>
-        year == PackagingYear ? [DirectRegistrant, ComplianceScheme] : null;
+    public static Guid NoSubmissionsId { get; } = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+
+    /// <summary>The submitter organisations the stub knows about. Any other ID returns 404.</summary>
+    public static IReadOnlySet<Guid> KnownSubmitterIds { get; } = new HashSet<Guid> { DirectRegistrantId, ComplianceSchemeId, NoSubmissionsId };
+
+    public static IReadOnlyList<ApprovedSubmission> ForYear(int year) =>
+        year == PackagingYear ? [DirectRegistrant, ComplianceScheme] : [];
 
     private static ApprovedSubmission DirectRegistrant => new()
     {
