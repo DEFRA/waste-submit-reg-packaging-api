@@ -181,15 +181,15 @@
               ]
             },
             {
-              "name": "Year with no data (404)",
+              "name": "Year with no data (empty)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
-                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns an empty items list', () => pm.expect(pm.response.json()).to.eql({ items: [] }));"
                     ]
                   }
                 }
@@ -214,11 +214,11 @@
                     }
                   ]
                 },
-                "description": "A year with no approved submissions returns 404 with a problem details body."
+                "description": "A year with no approved submissions returns 200 with an empty `items` list."
               },
               "response": [
                 {
-                  "name": "404: no data for the year",
+                  "name": "200: no data for the year",
                   "originalRequest": {
                     "method": "GET",
                     "header": [],
@@ -239,10 +239,10 @@
                         }
                       ]
                     },
-                    "description": "A year with no approved submissions returns 404 with a problem details body."
+                    "description": "A year with no approved submissions returns 200 with an empty `items` list."
                   },
-                  "status": "Not Found",
-                  "code": 404,
+                  "status": "OK",
+                  "code": 200,
                   "_postman_previewlanguage": "json",
                   "header": [
                     {
@@ -250,7 +250,7 @@
                       "value": "application/json; charset=utf-8"
                     }
                   ],
-                  "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\n  \"title\": \"Approved submissions not found\",\n  \"status\": 404,\n  \"detail\": \"No approved submissions in 2023\"\n}"
+                  "body": "{\n  \"items\": []\n}"
                 }
               ]
             },
@@ -312,7 +312,7 @@
                       "value": "application/json; charset=utf-8"
                     }
                   ],
-                  "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\n  \"title\": \"One or more validation errors occurred.\",\n  \"status\": 400,\n  \"errors\": {\n    \"format\": [\n      \"Use format=aggregated. It is the only format for now.\"\n    ]\n  },\n  \"traceId\": \"00-9075a44d35cd3cde16130b4462c03851-76a5147733f21294-00\"\n}"
+                  "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\n  \"title\": \"One or more validation errors occurred.\",\n  \"status\": 400,\n  \"errors\": {\n    \"format\": [\n      \"Use format=aggregated. It is the only format for now.\"\n    ]\n  },\n  \"traceId\": \"00-c443d122628d907e2058e034ac9f1027-cac5a95a0e8d9315-00\"\n}"
                 }
               ]
             },
@@ -582,7 +582,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
-                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Submitter organisation not found'));"
                     ]
                   }
                 }
@@ -609,7 +609,7 @@
                     }
                   ]
                 },
-                "description": "An organisation with no approved submissions returns 404 with a problem details body."
+                "description": "A submitter organisation that does not exist returns 404 with a problem details body."
               },
               "response": [
                 {
@@ -636,7 +636,7 @@
                         }
                       ]
                     },
-                    "description": "An organisation with no approved submissions returns 404 with a problem details body."
+                    "description": "A submitter organisation that does not exist returns 404 with a problem details body."
                   },
                   "status": "Not Found",
                   "code": 404,
@@ -647,20 +647,60 @@
                       "value": "application/json; charset=utf-8"
                     }
                   ],
-                  "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\n  \"title\": \"Approved submissions not found\",\n  \"status\": 404,\n  \"detail\": \"No approved submissions for organisation 99999999-9999-4999-8999-999999999999 in 2024\"\n}"
+                  "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\n  \"title\": \"Submitter organisation not found\",\n  \"status\": 404,\n  \"detail\": \"No submitter organisation with ID 99999999-9999-4999-8999-999999999999\"\n}"
                 }
               ]
             },
             {
-              "name": "Year with no data (404)",
+              "name": "Known organisation with no submissions (empty)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
-                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns an empty items list', () => pm.expect(pm.response.json()).to.eql({ items: [] }));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/packaging-submissions?format=aggregated",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "submitter-organisation",
+                    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
+                  ]
+                },
+                "description": "A submitter organisation that exists but has no approved submission for the year returns 200 with an empty `items` list. In the stub this is bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb."
+              },
+              "response": []
+            },
+            {
+              "name": "Year with no data (empty)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns an empty items list', () => pm.expect(pm.response.json()).to.eql({ items: [] }));"
                     ]
                   }
                 }
@@ -687,7 +727,7 @@
                     }
                   ]
                 },
-                "description": "A known organisation in a year with no data returns 404."
+                "description": "A known organisation in a year with no data returns 200 with an empty `items` list."
               },
               "response": []
             },
@@ -985,15 +1025,15 @@
               "response": []
             },
             {
-              "name": "Year with no data (404)",
+              "name": "Year with no data (empty)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
-                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns an empty items list', () => pm.expect(pm.response.json()).to.eql({ items: [] }));"
                     ]
                   }
                 }
@@ -1023,7 +1063,7 @@
                     }
                   ]
                 },
-                "description": "A year with no approved submissions returns 404 with a problem details body."
+                "description": "A year with no approved submissions returns 200 with an empty `items` list."
               },
               "response": []
             },
@@ -1269,7 +1309,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
-                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Submitter organisation not found'));"
                     ]
                   }
                 }
@@ -1301,20 +1341,65 @@
                     }
                   ]
                 },
-                "description": "An organisation with no approved submissions returns 404 with a problem details body."
+                "description": "A submitter organisation that does not exist returns 404 with a problem details body."
               },
               "response": []
             },
             {
-              "name": "Year with no data (404)",
+              "name": "Known organisation with no submissions (empty)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
-                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Approved submissions not found'));"
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns an empty items list', () => pm.expect(pm.response.json()).to.eql({ items: [] }));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{cdpApiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/packaging-submissions?format=aggregated",
+                  "host": [
+                    "{{cdpBaseUrl}}"
+                  ],
+                  "path": [
+                    "packaging",
+                    "{{year}}",
+                    "submitter-organisation",
+                    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                    "packaging-submissions"
+                  ],
+                  "query": [
+                    {
+                      "key": "format",
+                      "value": "aggregated"
+                    }
+                  ]
+                },
+                "description": "A submitter organisation that exists but has no approved submission for the year returns 200 with an empty `items` list. In the stub this is bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb."
+              },
+              "response": []
+            },
+            {
+              "name": "Year with no data (empty)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns an empty items list', () => pm.expect(pm.response.json()).to.eql({ items: [] }));"
                     ]
                   }
                 }
@@ -1346,7 +1431,7 @@
                     }
                   ]
                 },
-                "description": "A known organisation in a year with no data returns 404."
+                "description": "A known organisation in a year with no data returns 200 with an empty `items` list."
               },
               "response": []
             },

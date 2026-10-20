@@ -29,8 +29,9 @@ can build against them while the real data source is wired in. The service is co
 | `GET /health/db` | Whether the service can reach Postgres |
 | `GET /swagger`, `GET /openapi/v1.json` | The API documentation, where Swagger is turned on |
 
-Both packaging endpoints return their results under `items`, 404 when there is nothing for the year or organisation,
-and 400 unless `format` is `aggregated`, the only format for now. Each organisation carries its
+Both packaging endpoints return their results under `items`, which is empty when there is nothing for the year. The
+submitter endpoint returns 404 only when the organisation does not exist, and both return 400 unless `format` is
+`aggregated`, the only format for now. Each organisation carries its
 packaging in whole kilograms per material, and its `events`: every time it joined or left during the year, oldest first.
 
 ```json
@@ -175,7 +176,7 @@ tool, or send it to a team that will call the API.
 ## Postman
 
 [postman/waste-submit-reg-packaging-api.postman_collection.json](postman/waste-submit-reg-packaging-api.postman_collection.json)
-covers every endpoint: both health checks, both packaging endpoints (including the 404 cases) and the API
+covers every endpoint: both health checks, both packaging endpoints (including the empty, 400 and 404 cases) and the API
 documentation. It has two folders with the same requests and tests on every one.
 
 | Folder | Calls | Before you run it |
