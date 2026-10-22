@@ -22,11 +22,11 @@ public class OpenApiTest
         var paths = json.RootElement.GetProperty("paths");
 
         Assert.Equal(
-            "Every approved submission for a year",
-            paths.GetProperty("/packaging/{year}/packaging-submissions").GetProperty("get").GetProperty("summary").GetString());
+            "Material totals for each producer, grouped by submitter",
+            paths.GetProperty("/packaging/{packagingYear}/producer-material-totals-by-submitter").GetProperty("get").GetProperty("summary").GetString());
         Assert.Equal(
-            "Approved packaging data for one submitter",
-            paths.GetProperty("/packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions").GetProperty("get").GetProperty("summary").GetString());
+            "Material totals for each producer one submitter reported for",
+            paths.GetProperty("/packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals").GetProperty("get").GetProperty("summary").GetString());
     }
 
     [Fact]

@@ -8,29 +8,29 @@ namespace WasteSubmitRegPackagingApi.Obligations.Services;
 /// </summary>
 public class StubApprovedSubmissionsProvider : IApprovedSubmissionsProvider
 {
-    public Task<ItemsResponse<OrganisationPackaging>?> GetAggregatedSubmissionAsync(
-        int year,
-        Guid organisationId,
+    public Task<ItemsResponse<ProducerPackaging>?> GetProducerMaterialTotalsAsync(
+        int packagingYear,
+        Guid submitterOrganisationId,
         CancellationToken cancellationToken)
     {
-        if (!ApprovedSubmissionsFixtures.KnownSubmitterIds.Contains(organisationId))
+        if (!ApprovedSubmissionsFixtures.KnownSubmitterIds.Contains(submitterOrganisationId))
         {
-            return Task.FromResult<ItemsResponse<OrganisationPackaging>?>(null);
+            return Task.FromResult<ItemsResponse<ProducerPackaging>?>(null);
         }
 
-        var submission = ApprovedSubmissionsFixtures.ForYear(year)
-            .FirstOrDefault(approvedSubmission => approvedSubmission.SubmitterId == organisationId);
+        var submission = ApprovedSubmissionsFixtures.ForYear(packagingYear)
+            .FirstOrDefault(approvedSubmission => approvedSubmission.SubmitterOrganisationId == submitterOrganisationId);
 
-        ItemsResponse<OrganisationPackaging>? response =
-            new ItemsResponse<OrganisationPackaging> { Items = submission?.AggregatedPackaging ?? [] };
+        ItemsResponse<ProducerPackaging>? response =
+            new ItemsResponse<ProducerPackaging> { Items = submission?.Producers ?? [] };
 
         return Task.FromResult(response);
     }
 
-    public Task<ItemsResponse<ApprovedSubmission>> GetAggregatedSubmissionsAsync(
-        int year,
+    public Task<ItemsResponse<ApprovedSubmission>> GetProducerMaterialTotalsBySubmitterAsync(
+        int packagingYear,
         CancellationToken cancellationToken)
     {
-        return Task.FromResult(new ItemsResponse<ApprovedSubmission> { Items = ApprovedSubmissionsFixtures.ForYear(year) });
+        return Task.FromResult(new ItemsResponse<ApprovedSubmission> { Items = ApprovedSubmissionsFixtures.ForYear(packagingYear) });
     }
 }

@@ -23,15 +23,15 @@ can build against them while the real data source is wired in. The service is co
 
 | Endpoint | Returns |
 |---|---|
-| `GET /packaging/{year}/packaging-submissions?format=aggregated` | Every approved submission for the year, grouped by submitter. Not paged |
-| `GET /packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions?format=aggregated` | The organisations one submitter reported for: itself for a direct registrant, its members for a compliance scheme |
+| `GET /packaging/{packagingYear}/producer-material-totals-by-submitter` | Every approved submission for the year, grouped by submitter, with each producer's material totals. Not paged |
+| `GET /packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals` | The producers one submitter reported for: itself for a direct registrant, its members for a compliance scheme |
 | `GET /health` | Whether the service is running |
 | `GET /health/db` | Whether the service can reach Postgres |
 | `GET /swagger`, `GET /openapi/v1.json` | The API documentation, where Swagger is turned on |
 
 Both packaging endpoints return their results under `items`, which is empty when there is nothing for the year. The
-submitter endpoint returns 404 only when the organisation does not exist, and both return 400 unless `format` is
-`aggregated`, the only format for now. Each organisation carries its
+submitter endpoint returns 404 only when the submitter organisation does not exist. For a compliance scheme,
+`submitterOrganisationId` is the scheme's ID, not the organisation ID of the company that runs it. Each producer carries its
 packaging in whole kilograms per material, and its `events`: every time it joined or left during the year, oldest first.
 
 ```json
@@ -43,11 +43,11 @@ packaging in whole kilograms per material, and its `events`: every time it joine
 
 `code` is numbered as in the
 [GOV.UK registration file guidance](https://www.gov.uk/guidance/register-for-epr-for-packaging-create-your-registration-file),
-and `action` (`Joined` or `Left`) is worked out from it. `events` is `[]` when the organisation did neither.
+and `action` (`Joined` or `Left`) is worked out from it. `events` is `[]` when the producer did neither.
 
 The stub data is for year `2024`, with two submitters:
 
-| Submitter | `organisationId` |
+| Submitter | `submitterOrganisationId` |
 |---|---|
 | A direct registrant | `11111111-1111-4111-8111-111111111111` |
 | A compliance scheme with four members: one with no changes, one joining, one leaving, and one joining, leaving and rejoining | `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa` |
@@ -176,7 +176,7 @@ tool, or send it to a team that will call the API.
 ## Postman
 
 [postman/waste-submit-reg-packaging-api.postman_collection.json](postman/waste-submit-reg-packaging-api.postman_collection.json)
-covers every endpoint: both health checks, both packaging endpoints (including the empty, 400 and 404 cases) and the API
+covers every endpoint: both health checks, both packaging endpoints (including the empty and 404 cases) and the API
 documentation. It has two folders with the same requests and tests on every one.
 
 | Folder | Calls | Before you run it |

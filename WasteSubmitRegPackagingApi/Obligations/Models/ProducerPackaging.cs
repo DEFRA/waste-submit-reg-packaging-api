@@ -4,12 +4,12 @@ using System.Diagnostics.CodeAnalysis;
 namespace WasteSubmitRegPackagingApi.Obligations.Models;
 
 [ExcludeFromCodeCoverage]
-public class OrganisationPackaging
+public class ProducerPackaging
 {
-    [Description("The organisation the packaging belongs to.")]
-    public required Guid OrganisationId { get; init; }
+    [Description("The producer the packaging belongs to.")]
+    public required Guid ProducerOrganisationId { get; init; }
 
-    [Description("Each time the organisation joined or left during the year, oldest first. Empty when it did neither.")]
+    [Description("Each time the producer joined or left during the year, oldest first. Empty when it did neither.")]
     public required IReadOnlyList<LeaverJoinerEvent> Events { get; init; }
 
     [Description("Packaging totals, one per material.")]
