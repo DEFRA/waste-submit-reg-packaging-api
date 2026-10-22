@@ -25,11 +25,11 @@ internal static class ApprovedSubmissionsFixtures
 
     private static ApprovedSubmission DirectRegistrant => new()
     {
-        SubmitterId = DirectRegistrantId,
+        SubmitterOrganisationId = DirectRegistrantId,
         SubmitterType = SubmitterType.DirectRegistrant,
-        AggregatedPackaging =
+        Producers =
         [
-            Organisation(DirectRegistrantId, events: [],
+            Producer(DirectRegistrantId, events: [],
                 Material("PL", 412350),
                 Material("PC", 655120),
                 Material("GL", 167800))
@@ -38,11 +38,11 @@ internal static class ApprovedSubmissionsFixtures
 
     private static ApprovedSubmission ComplianceScheme => new()
     {
-        SubmitterId = ComplianceSchemeId,
+        SubmitterOrganisationId = ComplianceSchemeId,
         SubmitterType = SubmitterType.ComplianceScheme,
-        AggregatedPackaging =
+        Producers =
         [
-            Organisation(Guid.Parse("22222222-2222-4222-8222-222222222222"), events: [],
+            Producer(Guid.Parse("22222222-2222-4222-8222-222222222222"), events: [],
                 Material("PL", 100000),
                 Material("WD", 50000),
                 Material("AL", 25000),
@@ -51,14 +51,14 @@ internal static class ApprovedSubmissionsFixtures
                 Material("GL", 200000),
                 Material("FC", 30000)),
             // Joined the scheme part-way through the relevant year (2025).
-            Organisation(Guid.Parse("33333333-3333-4333-8333-333333333333"), events: [Event("03", new DateOnly(2025, 7, 5))],
+            Producer(Guid.Parse("33333333-3333-4333-8333-333333333333"), events: [Event("03", new DateOnly(2025, 7, 5))],
                 Material("PL", 75000),
                 Material("PC", 120000)),
             // Resigned from the scheme part-way through the relevant year.
-            Organisation(Guid.Parse("44444444-4444-4444-8444-444444444444"), events: [Event("13", new DateOnly(2025, 9, 30))],
+            Producer(Guid.Parse("44444444-4444-4444-8444-444444444444"), events: [Event("13", new DateOnly(2025, 9, 30))],
                 Material("GL", 64000)),
             // Joined, resigned and rejoined within the relevant year.
-            Organisation(Guid.Parse("55555555-5555-4555-8555-555555555555"),
+            Producer(Guid.Parse("55555555-5555-4555-8555-555555555555"),
                 events:
                 [
                     Event("01", new DateOnly(2025, 3, 3)),
@@ -70,13 +70,13 @@ internal static class ApprovedSubmissionsFixtures
         ]
     };
 
-    private static OrganisationPackaging Organisation(
-        Guid organisationId,
+    private static ProducerPackaging Producer(
+        Guid producerOrganisationId,
         IReadOnlyList<LeaverJoinerEvent> events,
         params MaterialWeight[] materials) =>
         new()
         {
-            OrganisationId = organisationId,
+            ProducerOrganisationId = producerOrganisationId,
             Events = events.OrderBy(leaverJoinerEvent => leaverJoinerEvent.Date).ToList(),
             Materials = materials
         };

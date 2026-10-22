@@ -78,8 +78,8 @@
           ]
         },
         {
-          "name": "2. Every approved submission for a year",
-          "description": "`GET /packaging/{year}/packaging-submissions?format=aggregated`. Every approved submission for the year, grouped by submitter. Not paged.",
+          "name": "2. Producer material totals by submitter",
+          "description": "`GET /packaging/{packagingYear}/producer-material-totals-by-submitter`. Every approved submission for the year, grouped by submitter. Not paged.",
           "item": [
             {
               "name": "All approved submissions",
@@ -91,8 +91,8 @@
                     "exec": [
                       "pm.test('200 OK', () => pm.response.to.have.status(200));",
                       "const body = pm.response.json();",
-                      "const checkOrganisation = (o) => {",
-                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "const checkProducer = (o) => {",
+                      "    pm.expect(o.producerOrganisationId).to.be.a('string');",
                       "    pm.expect(o.events, 'events is always a list').to.be.an('array');",
                       "    o.events.forEach(e => {",
                       "        pm.expect(e.code).to.be.a('number');",
@@ -108,12 +108,12 @@
                       "    });",
                       "};",
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
-                      "pm.test('Each submission has a submitter and its organisations', () => {",
+                      "pm.test('Each submission has a submitter and its producers', () => {",
                       "    body.items.forEach(s => {",
-                      "        pm.expect(s.submitterId).to.be.a('string');",
+                      "        pm.expect(s.submitterOrganisationId).to.be.a('string');",
                       "        pm.expect(['DirectRegistrant', 'ComplianceScheme']).to.include(s.submitterType);",
-                      "        pm.expect(s.aggregatedPackaging).to.be.an('array').that.is.not.empty;",
-                      "        s.aggregatedPackaging.forEach(checkOrganisation);",
+                      "        pm.expect(s.producers).to.be.an('array').that.is.not.empty;",
+                      "        s.producers.forEach(checkProducer);",
                       "    });",
                       "});"
                     ]
@@ -124,23 +124,17 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/packaging-submissions?format=aggregated",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/producer-material-totals-by-submitter",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals-by-submitter"
                   ]
                 },
-                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
+                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `producers`: one block per producer, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
               },
               "response": [
                 {
@@ -149,23 +143,17 @@
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{baseUrl}}/packaging/{{year}}/packaging-submissions?format=aggregated",
+                      "raw": "{{baseUrl}}/packaging/{{year}}/producer-material-totals-by-submitter",
                       "host": [
                         "{{baseUrl}}"
                       ],
                       "path": [
                         "packaging",
                         "{{year}}",
-                        "packaging-submissions"
-                      ],
-                      "query": [
-                        {
-                          "key": "format",
-                          "value": "aggregated"
-                        }
+                        "producer-material-totals-by-submitter"
                       ]
                     },
-                    "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
+                    "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `producers`: one block per producer, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
                   },
                   "status": "OK",
                   "code": 200,
@@ -176,7 +164,7 @@
                       "value": "application/json; charset=utf-8"
                     }
                   ],
-                  "body": "{\n  \"items\": [\n    {\n      \"submitterId\": \"11111111-1111-4111-8111-111111111111\",\n      \"submitterType\": \"DirectRegistrant\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"11111111-1111-4111-8111-111111111111\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 412350\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 655120\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 167800\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"submitterId\": \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\n      \"submitterType\": \"ComplianceScheme\",\n      \"aggregatedPackaging\": [\n        {\n          \"organisationId\": \"22222222-2222-4222-8222-222222222222\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 100000\n            },\n            {\n              \"materialCode\": \"WD\",\n              \"kilograms\": 50000\n            },\n            {\n              \"materialCode\": \"AL\",\n              \"kilograms\": 25000\n            },\n            {\n              \"materialCode\": \"ST\",\n              \"kilograms\": 40000\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 150000\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 200000\n            },\n            {\n              \"materialCode\": \"FC\",\n              \"kilograms\": 30000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"33333333-3333-4333-8333-333333333333\",\n          \"events\": [\n            {\n              \"code\": 3,\n              \"action\": \"Joined\",\n              \"date\": \"2025-07-05\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 75000\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 120000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"44444444-4444-4444-8444-444444444444\",\n          \"events\": [\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-09-30\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 64000\n            }\n          ]\n        },\n        {\n          \"organisationId\": \"55555555-5555-4555-8555-555555555555\",\n          \"events\": [\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-03-03\"\n            },\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-07-14\"\n            },\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-10-01\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 40000\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 22000\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+                  "body": "{\n  \"items\": [\n    {\n      \"submitterOrganisationId\": \"11111111-1111-4111-8111-111111111111\",\n      \"submitterType\": \"DirectRegistrant\",\n      \"producers\": [\n        {\n          \"producerOrganisationId\": \"11111111-1111-4111-8111-111111111111\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 412350\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 655120\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 167800\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"submitterOrganisationId\": \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\n      \"submitterType\": \"ComplianceScheme\",\n      \"producers\": [\n        {\n          \"producerOrganisationId\": \"22222222-2222-4222-8222-222222222222\",\n          \"events\": [],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 100000\n            },\n            {\n              \"materialCode\": \"WD\",\n              \"kilograms\": 50000\n            },\n            {\n              \"materialCode\": \"AL\",\n              \"kilograms\": 25000\n            },\n            {\n              \"materialCode\": \"ST\",\n              \"kilograms\": 40000\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 150000\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 200000\n            },\n            {\n              \"materialCode\": \"FC\",\n              \"kilograms\": 30000\n            }\n          ]\n        },\n        {\n          \"producerOrganisationId\": \"33333333-3333-4333-8333-333333333333\",\n          \"events\": [\n            {\n              \"code\": 3,\n              \"action\": \"Joined\",\n              \"date\": \"2025-07-05\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 75000\n            },\n            {\n              \"materialCode\": \"PC\",\n              \"kilograms\": 120000\n            }\n          ]\n        },\n        {\n          \"producerOrganisationId\": \"44444444-4444-4444-8444-444444444444\",\n          \"events\": [\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-09-30\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 64000\n            }\n          ]\n        },\n        {\n          \"producerOrganisationId\": \"55555555-5555-4555-8555-555555555555\",\n          \"events\": [\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-03-03\"\n            },\n            {\n              \"code\": 13,\n              \"action\": \"Left\",\n              \"date\": \"2025-07-14\"\n            },\n            {\n              \"code\": 1,\n              \"action\": \"Joined\",\n              \"date\": \"2025-10-01\"\n            }\n          ],\n          \"materials\": [\n            {\n              \"materialCode\": \"PL\",\n              \"kilograms\": 40000\n            },\n            {\n              \"materialCode\": \"GL\",\n              \"kilograms\": 22000\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
                 }
               ]
             },
@@ -198,20 +186,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/2023/packaging-submissions?format=aggregated",
+                  "raw": "{{baseUrl}}/packaging/2023/producer-material-totals-by-submitter",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "2023",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals-by-submitter"
                   ]
                 },
                 "description": "A year with no approved submissions returns 200 with an empty `items` list."
@@ -223,20 +205,14 @@
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{baseUrl}}/packaging/2023/packaging-submissions?format=aggregated",
+                      "raw": "{{baseUrl}}/packaging/2023/producer-material-totals-by-submitter",
                       "host": [
                         "{{baseUrl}}"
                       ],
                       "path": [
                         "packaging",
                         "2023",
-                        "packaging-submissions"
-                      ],
-                      "query": [
-                        {
-                          "key": "format",
-                          "value": "aggregated"
-                        }
+                        "producer-material-totals-by-submitter"
                       ]
                     },
                     "description": "A year with no approved submissions returns 200 with an empty `items` list."
@@ -251,68 +227,6 @@
                     }
                   ],
                   "body": "{\n  \"items\": []\n}"
-                }
-              ]
-            },
-            {
-              "name": "Format missing (400)",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
-                      "pm.test('Says format must be aggregated', () => pm.expect(pm.response.json().errors.format).to.eql(['Use format=aggregated. It is the only format for now.']));"
-                    ]
-                  }
-                }
-              ],
-              "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/packaging-submissions",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "packaging",
-                    "{{year}}",
-                    "packaging-submissions"
-                  ]
-                },
-                "description": "`format` is required, and `aggregated` is the only value for now. Leaving it out, or sending anything else, returns 400 with a validation problem body."
-              },
-              "response": [
-                {
-                  "name": "400: format missing",
-                  "originalRequest": {
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{baseUrl}}/packaging/{{year}}/packaging-submissions",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "packaging",
-                        "{{year}}",
-                        "packaging-submissions"
-                      ]
-                    },
-                    "description": "`format` is required, and `aggregated` is the only value for now. Leaving it out, or sending anything else, returns 400 with a validation problem body."
-                  },
-                  "status": "Bad Request",
-                  "code": 400,
-                  "_postman_previewlanguage": "json",
-                  "header": [
-                    {
-                      "key": "Content-Type",
-                      "value": "application/json; charset=utf-8"
-                    }
-                  ],
-                  "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\n  \"title\": \"One or more validation errors occurred.\",\n  \"status\": 400,\n  \"errors\": {\n    \"format\": [\n      \"Use format=aggregated. It is the only format for now.\"\n    ]\n  },\n  \"traceId\": \"00-c443d122628d907e2058e034ac9f1027-cac5a95a0e8d9315-00\"\n}"
                 }
               ]
             },
@@ -333,20 +247,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/latest/packaging-submissions?format=aggregated",
+                  "raw": "{{baseUrl}}/packaging/latest/producer-material-totals-by-submitter",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "latest",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals-by-submitter"
                   ]
                 },
                 "description": "The year must be a number, so this route does not match."
@@ -357,7 +265,7 @@
         },
         {
           "name": "3. One submitter",
-          "description": "`GET /packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions?format=aggregated`. The organisations one submitter reported for, as `items`.",
+          "description": "`GET /packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals`. The producers one submitter reported for, as `items`.",
           "item": [
             {
               "name": "Direct registrant",
@@ -369,8 +277,8 @@
                     "exec": [
                       "pm.test('200 OK', () => pm.response.to.have.status(200));",
                       "const body = pm.response.json();",
-                      "const checkOrganisation = (o) => {",
-                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "const checkProducer = (o) => {",
+                      "    pm.expect(o.producerOrganisationId).to.be.a('string');",
                       "    pm.expect(o.events, 'events is always a list').to.be.an('array');",
                       "    o.events.forEach(e => {",
                       "        pm.expect(e.code).to.be.a('number');",
@@ -386,10 +294,10 @@
                       "    });",
                       "};",
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
-                      "pm.test('One organisation, the direct registrant itself', () => {",
+                      "pm.test('One producer, the direct registrant itself', () => {",
                       "    pm.expect(body.items).to.have.lengthOf(1);",
-                      "    pm.expect(body.items[0].organisationId).to.eql(pm.variables.get('directRegistrantId'));",
-                      "    checkOrganisation(body.items[0]);",
+                      "    pm.expect(body.items[0].producerOrganisationId).to.eql(pm.variables.get('directRegistrantId'));",
+                      "    checkProducer(body.items[0]);",
                       "});",
                       "pm.test('No joiner or leaver events', () => pm.expect(body.items[0].events).to.eql([]));"
                     ]
@@ -400,7 +308,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{directRegistrantId}}/packaging-submissions?format=aggregated",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{directRegistrantId}}/producer-material-totals",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -409,16 +317,10 @@
                     "{{year}}",
                     "submitter-organisation",
                     "{{directRegistrantId}}",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
-                "description": "A direct registrant reports for itself, so `items` holds one organisation: the registrant."
+                "description": "A direct registrant reports for itself, so `items` holds one producer: the registrant."
               },
               "response": [
                 {
@@ -427,7 +329,7 @@
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{directRegistrantId}}/packaging-submissions?format=aggregated",
+                      "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{directRegistrantId}}/producer-material-totals",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -436,16 +338,10 @@
                         "{{year}}",
                         "submitter-organisation",
                         "{{directRegistrantId}}",
-                        "packaging-submissions"
-                      ],
-                      "query": [
-                        {
-                          "key": "format",
-                          "value": "aggregated"
-                        }
+                        "producer-material-totals"
                       ]
                     },
-                    "description": "A direct registrant reports for itself, so `items` holds one organisation: the registrant."
+                    "description": "A direct registrant reports for itself, so `items` holds one producer: the registrant."
                   },
                   "status": "OK",
                   "code": 200,
@@ -456,7 +352,7 @@
                       "value": "application/json; charset=utf-8"
                     }
                   ],
-                  "body": "{\n  \"items\": [\n    {\n      \"organisationId\": \"11111111-1111-4111-8111-111111111111\",\n      \"events\": [],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 412350\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"kilograms\": 655120\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 167800\n        }\n      ]\n    }\n  ]\n}"
+                  "body": "{\n  \"items\": [\n    {\n      \"producerOrganisationId\": \"11111111-1111-4111-8111-111111111111\",\n      \"events\": [],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 412350\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"kilograms\": 655120\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 167800\n        }\n      ]\n    }\n  ]\n}"
                 }
               ]
             },
@@ -470,8 +366,8 @@
                     "exec": [
                       "pm.test('200 OK', () => pm.response.to.have.status(200));",
                       "const body = pm.response.json();",
-                      "const checkOrganisation = (o) => {",
-                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "const checkProducer = (o) => {",
+                      "    pm.expect(o.producerOrganisationId).to.be.a('string');",
                       "    pm.expect(o.events, 'events is always a list').to.be.an('array');",
                       "    o.events.forEach(e => {",
                       "        pm.expect(e.code).to.be.a('number');",
@@ -489,9 +385,9 @@
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
                       "pm.test('One item per scheme member', () => {",
                       "    pm.expect(body.items).to.have.lengthOf(4);",
-                      "    body.items.forEach(checkOrganisation);",
+                      "    body.items.forEach(checkProducer);",
                       "});",
-                      "const eventsOf = (id) => body.items.find(o => o.organisationId === id).events;",
+                      "const eventsOf = (id) => body.items.find(o => o.producerOrganisationId === id).events;",
                       "pm.test('A member that joined has one Joined event with code 3', () => {",
                       "    pm.expect(eventsOf('33333333-3333-4333-8333-333333333333')).to.eql([{ code: 3, action: 'Joined', date: '2025-07-05' }]);",
                       "});",
@@ -513,7 +409,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{complianceSchemeId}}/packaging-submissions?format=aggregated",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{complianceSchemeId}}/producer-material-totals",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -522,13 +418,7 @@
                     "{{year}}",
                     "submitter-organisation",
                     "{{complianceSchemeId}}",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
                 "description": "A compliance scheme returns one item per member, each with its `events`: every time it joined or left during the year, oldest first. In the stub data one member joined (code 3), one resigned (code 13), and one joined, resigned and rejoined (codes 1, 13, 1). Codes are numbered as in the GOV.UK registration file guidance, and `action` is `Joined` or `Left`."
@@ -540,7 +430,7 @@
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{complianceSchemeId}}/packaging-submissions?format=aggregated",
+                      "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/{{complianceSchemeId}}/producer-material-totals",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -549,13 +439,7 @@
                         "{{year}}",
                         "submitter-organisation",
                         "{{complianceSchemeId}}",
-                        "packaging-submissions"
-                      ],
-                      "query": [
-                        {
-                          "key": "format",
-                          "value": "aggregated"
-                        }
+                        "producer-material-totals"
                       ]
                     },
                     "description": "A compliance scheme returns one item per member, each with its `events`: every time it joined or left during the year, oldest first. In the stub data one member joined (code 3), one resigned (code 13), and one joined, resigned and rejoined (codes 1, 13, 1). Codes are numbered as in the GOV.UK registration file guidance, and `action` is `Joined` or `Left`."
@@ -569,7 +453,7 @@
                       "value": "application/json; charset=utf-8"
                     }
                   ],
-                  "body": "{\n  \"items\": [\n    {\n      \"organisationId\": \"22222222-2222-4222-8222-222222222222\",\n      \"events\": [],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 100000\n        },\n        {\n          \"materialCode\": \"WD\",\n          \"kilograms\": 50000\n        },\n        {\n          \"materialCode\": \"AL\",\n          \"kilograms\": 25000\n        },\n        {\n          \"materialCode\": \"ST\",\n          \"kilograms\": 40000\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"kilograms\": 150000\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 200000\n        },\n        {\n          \"materialCode\": \"FC\",\n          \"kilograms\": 30000\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"33333333-3333-4333-8333-333333333333\",\n      \"events\": [\n        {\n          \"code\": 3,\n          \"action\": \"Joined\",\n          \"date\": \"2025-07-05\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 75000\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"kilograms\": 120000\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"44444444-4444-4444-8444-444444444444\",\n      \"events\": [\n        {\n          \"code\": 13,\n          \"action\": \"Left\",\n          \"date\": \"2025-09-30\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 64000\n        }\n      ]\n    },\n    {\n      \"organisationId\": \"55555555-5555-4555-8555-555555555555\",\n      \"events\": [\n        {\n          \"code\": 1,\n          \"action\": \"Joined\",\n          \"date\": \"2025-03-03\"\n        },\n        {\n          \"code\": 13,\n          \"action\": \"Left\",\n          \"date\": \"2025-07-14\"\n        },\n        {\n          \"code\": 1,\n          \"action\": \"Joined\",\n          \"date\": \"2025-10-01\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 40000\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 22000\n        }\n      ]\n    }\n  ]\n}"
+                  "body": "{\n  \"items\": [\n    {\n      \"producerOrganisationId\": \"22222222-2222-4222-8222-222222222222\",\n      \"events\": [],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 100000\n        },\n        {\n          \"materialCode\": \"WD\",\n          \"kilograms\": 50000\n        },\n        {\n          \"materialCode\": \"AL\",\n          \"kilograms\": 25000\n        },\n        {\n          \"materialCode\": \"ST\",\n          \"kilograms\": 40000\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"kilograms\": 150000\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 200000\n        },\n        {\n          \"materialCode\": \"FC\",\n          \"kilograms\": 30000\n        }\n      ]\n    },\n    {\n      \"producerOrganisationId\": \"33333333-3333-4333-8333-333333333333\",\n      \"events\": [\n        {\n          \"code\": 3,\n          \"action\": \"Joined\",\n          \"date\": \"2025-07-05\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 75000\n        },\n        {\n          \"materialCode\": \"PC\",\n          \"kilograms\": 120000\n        }\n      ]\n    },\n    {\n      \"producerOrganisationId\": \"44444444-4444-4444-8444-444444444444\",\n      \"events\": [\n        {\n          \"code\": 13,\n          \"action\": \"Left\",\n          \"date\": \"2025-09-30\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 64000\n        }\n      ]\n    },\n    {\n      \"producerOrganisationId\": \"55555555-5555-4555-8555-555555555555\",\n      \"events\": [\n        {\n          \"code\": 1,\n          \"action\": \"Joined\",\n          \"date\": \"2025-03-03\"\n        },\n        {\n          \"code\": 13,\n          \"action\": \"Left\",\n          \"date\": \"2025-07-14\"\n        },\n        {\n          \"code\": 1,\n          \"action\": \"Joined\",\n          \"date\": \"2025-10-01\"\n        }\n      ],\n      \"materials\": [\n        {\n          \"materialCode\": \"PL\",\n          \"kilograms\": 40000\n        },\n        {\n          \"materialCode\": \"GL\",\n          \"kilograms\": 22000\n        }\n      ]\n    }\n  ]\n}"
                 }
               ]
             },
@@ -591,7 +475,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/99999999-9999-4999-8999-999999999999/packaging-submissions?format=aggregated",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/99999999-9999-4999-8999-999999999999/producer-material-totals",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -600,13 +484,7 @@
                     "{{year}}",
                     "submitter-organisation",
                     "99999999-9999-4999-8999-999999999999",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
                 "description": "A submitter organisation that does not exist returns 404 with a problem details body."
@@ -618,7 +496,7 @@
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/99999999-9999-4999-8999-999999999999/packaging-submissions?format=aggregated",
+                      "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/99999999-9999-4999-8999-999999999999/producer-material-totals",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -627,13 +505,7 @@
                         "{{year}}",
                         "submitter-organisation",
                         "99999999-9999-4999-8999-999999999999",
-                        "packaging-submissions"
-                      ],
-                      "query": [
-                        {
-                          "key": "format",
-                          "value": "aggregated"
-                        }
+                        "producer-material-totals"
                       ]
                     },
                     "description": "A submitter organisation that does not exist returns 404 with a problem details body."
@@ -669,7 +541,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/packaging-submissions?format=aggregated",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/producer-material-totals",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -678,13 +550,7 @@
                     "{{year}}",
                     "submitter-organisation",
                     "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
                 "description": "A submitter organisation that exists but has no approved submission for the year returns 200 with an empty `items` list. In the stub this is bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb."
@@ -709,7 +575,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/2023/submitter-organisation/{{directRegistrantId}}/packaging-submissions?format=aggregated",
+                  "raw": "{{baseUrl}}/packaging/2023/submitter-organisation/{{directRegistrantId}}/producer-material-totals",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -718,13 +584,7 @@
                     "2023",
                     "submitter-organisation",
                     "{{directRegistrantId}}",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
                 "description": "A known organisation in a year with no data returns 200 with an empty `items` list."
@@ -748,7 +608,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/100123/packaging-submissions?format=aggregated",
+                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/100123/producer-material-totals",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -757,13 +617,7 @@
                     "{{year}}",
                     "submitter-organisation",
                     "100123",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
                 "description": "The organisation ID is the GUID (the external ID), not the 6-digit reference number, so this route does not match."
@@ -787,8 +641,8 @@
                       "pm.test('200 OK', () => pm.response.to.have.status(200));",
                       "pm.test('Describes both packaging endpoints', () => {",
                       "    const paths = Object.keys(pm.response.json().paths);",
-                      "    pm.expect(paths).to.include('/packaging/{year}/packaging-submissions');",
-                      "    pm.expect(paths).to.include('/packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions');",
+                      "    pm.expect(paths).to.include('/packaging/{packagingYear}/producer-material-totals-by-submitter');",
+                      "    pm.expect(paths).to.include('/packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals');",
                       "});"
                     ]
                   }
@@ -953,8 +807,8 @@
           ]
         },
         {
-          "name": "2. Every approved submission for a year",
-          "description": "`GET /packaging/{year}/packaging-submissions?format=aggregated`. Every approved submission for the year, grouped by submitter. Not paged.",
+          "name": "2. Producer material totals by submitter",
+          "description": "`GET /packaging/{packagingYear}/producer-material-totals-by-submitter`. Every approved submission for the year, grouped by submitter. Not paged.",
           "item": [
             {
               "name": "All approved submissions",
@@ -966,8 +820,8 @@
                     "exec": [
                       "pm.test('200 OK', () => pm.response.to.have.status(200));",
                       "const body = pm.response.json();",
-                      "const checkOrganisation = (o) => {",
-                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "const checkProducer = (o) => {",
+                      "    pm.expect(o.producerOrganisationId).to.be.a('string');",
                       "    pm.expect(o.events, 'events is always a list').to.be.an('array');",
                       "    o.events.forEach(e => {",
                       "        pm.expect(e.code).to.be.a('number');",
@@ -983,12 +837,12 @@
                       "    });",
                       "};",
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
-                      "pm.test('Each submission has a submitter and its organisations', () => {",
+                      "pm.test('Each submission has a submitter and its producers', () => {",
                       "    body.items.forEach(s => {",
-                      "        pm.expect(s.submitterId).to.be.a('string');",
+                      "        pm.expect(s.submitterOrganisationId).to.be.a('string');",
                       "        pm.expect(['DirectRegistrant', 'ComplianceScheme']).to.include(s.submitterType);",
-                      "        pm.expect(s.aggregatedPackaging).to.be.an('array').that.is.not.empty;",
-                      "        s.aggregatedPackaging.forEach(checkOrganisation);",
+                      "        pm.expect(s.producers).to.be.an('array').that.is.not.empty;",
+                      "        s.producers.forEach(checkProducer);",
                       "    });",
                       "});"
                     ]
@@ -1004,23 +858,17 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/packaging-submissions?format=aggregated",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/producer-material-totals-by-submitter",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "{{year}}",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals-by-submitter"
                   ]
                 },
-                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `aggregatedPackaging`: one block per organisation, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
+                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `producers`: one block per producer, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
               },
               "response": []
             },
@@ -1047,60 +895,17 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/2023/packaging-submissions?format=aggregated",
+                  "raw": "{{cdpBaseUrl}}/packaging/2023/producer-material-totals-by-submitter",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "2023",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals-by-submitter"
                   ]
                 },
                 "description": "A year with no approved submissions returns 200 with an empty `items` list."
-              },
-              "response": []
-            },
-            {
-              "name": "Format missing (400)",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
-                      "pm.test('Says format must be aggregated', () => pm.expect(pm.response.json().errors.format).to.eql(['Use format=aggregated. It is the only format for now.']));"
-                    ]
-                  }
-                }
-              ],
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "x-api-key",
-                    "value": "{{cdpApiKey}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/packaging-submissions",
-                  "host": [
-                    "{{cdpBaseUrl}}"
-                  ],
-                  "path": [
-                    "packaging",
-                    "{{year}}",
-                    "packaging-submissions"
-                  ]
-                },
-                "description": "`format` is required, and `aggregated` is the only value for now. Leaving it out, or sending anything else, returns 400 with a validation problem body."
               },
               "response": []
             },
@@ -1126,20 +931,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/latest/packaging-submissions?format=aggregated",
+                  "raw": "{{cdpBaseUrl}}/packaging/latest/producer-material-totals-by-submitter",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
                     "latest",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals-by-submitter"
                   ]
                 },
                 "description": "The year must be a number, so this route does not match."
@@ -1150,7 +949,7 @@
         },
         {
           "name": "3. One submitter",
-          "description": "`GET /packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions?format=aggregated`. The organisations one submitter reported for, as `items`.",
+          "description": "`GET /packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals`. The producers one submitter reported for, as `items`.",
           "item": [
             {
               "name": "Direct registrant",
@@ -1162,8 +961,8 @@
                     "exec": [
                       "pm.test('200 OK', () => pm.response.to.have.status(200));",
                       "const body = pm.response.json();",
-                      "const checkOrganisation = (o) => {",
-                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "const checkProducer = (o) => {",
+                      "    pm.expect(o.producerOrganisationId).to.be.a('string');",
                       "    pm.expect(o.events, 'events is always a list').to.be.an('array');",
                       "    o.events.forEach(e => {",
                       "        pm.expect(e.code).to.be.a('number');",
@@ -1179,10 +978,10 @@
                       "    });",
                       "};",
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
-                      "pm.test('One organisation, the direct registrant itself', () => {",
+                      "pm.test('One producer, the direct registrant itself', () => {",
                       "    pm.expect(body.items).to.have.lengthOf(1);",
-                      "    pm.expect(body.items[0].organisationId).to.eql(pm.variables.get('directRegistrantId'));",
-                      "    checkOrganisation(body.items[0]);",
+                      "    pm.expect(body.items[0].producerOrganisationId).to.eql(pm.variables.get('directRegistrantId'));",
+                      "    checkProducer(body.items[0]);",
                       "});",
                       "pm.test('No joiner or leaver events', () => pm.expect(body.items[0].events).to.eql([]));"
                     ]
@@ -1198,7 +997,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/{{directRegistrantId}}/packaging-submissions?format=aggregated",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/{{directRegistrantId}}/producer-material-totals",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
@@ -1207,16 +1006,10 @@
                     "{{year}}",
                     "submitter-organisation",
                     "{{directRegistrantId}}",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
-                "description": "A direct registrant reports for itself, so `items` holds one organisation: the registrant."
+                "description": "A direct registrant reports for itself, so `items` holds one producer: the registrant."
               },
               "response": []
             },
@@ -1230,8 +1023,8 @@
                     "exec": [
                       "pm.test('200 OK', () => pm.response.to.have.status(200));",
                       "const body = pm.response.json();",
-                      "const checkOrganisation = (o) => {",
-                      "    pm.expect(o.organisationId).to.be.a('string');",
+                      "const checkProducer = (o) => {",
+                      "    pm.expect(o.producerOrganisationId).to.be.a('string');",
                       "    pm.expect(o.events, 'events is always a list').to.be.an('array');",
                       "    o.events.forEach(e => {",
                       "        pm.expect(e.code).to.be.a('number');",
@@ -1249,9 +1042,9 @@
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
                       "pm.test('One item per scheme member', () => {",
                       "    pm.expect(body.items).to.have.lengthOf(4);",
-                      "    body.items.forEach(checkOrganisation);",
+                      "    body.items.forEach(checkProducer);",
                       "});",
-                      "const eventsOf = (id) => body.items.find(o => o.organisationId === id).events;",
+                      "const eventsOf = (id) => body.items.find(o => o.producerOrganisationId === id).events;",
                       "pm.test('A member that joined has one Joined event with code 3', () => {",
                       "    pm.expect(eventsOf('33333333-3333-4333-8333-333333333333')).to.eql([{ code: 3, action: 'Joined', date: '2025-07-05' }]);",
                       "});",
@@ -1278,7 +1071,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/{{complianceSchemeId}}/packaging-submissions?format=aggregated",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/{{complianceSchemeId}}/producer-material-totals",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
@@ -1287,13 +1080,7 @@
                     "{{year}}",
                     "submitter-organisation",
                     "{{complianceSchemeId}}",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
                 "description": "A compliance scheme returns one item per member, each with its `events`: every time it joined or left during the year, oldest first. In the stub data one member joined (code 3), one resigned (code 13), and one joined, resigned and rejoined (codes 1, 13, 1). Codes are numbered as in the GOV.UK registration file guidance, and `action` is `Joined` or `Left`."
@@ -1323,7 +1110,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/99999999-9999-4999-8999-999999999999/packaging-submissions?format=aggregated",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/99999999-9999-4999-8999-999999999999/producer-material-totals",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
@@ -1332,13 +1119,7 @@
                     "{{year}}",
                     "submitter-organisation",
                     "99999999-9999-4999-8999-999999999999",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
                 "description": "A submitter organisation that does not exist returns 404 with a problem details body."
@@ -1368,7 +1149,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/packaging-submissions?format=aggregated",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/producer-material-totals",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
@@ -1377,13 +1158,7 @@
                     "{{year}}",
                     "submitter-organisation",
                     "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
                 "description": "A submitter organisation that exists but has no approved submission for the year returns 200 with an empty `items` list. In the stub this is bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb."
@@ -1413,7 +1188,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/2023/submitter-organisation/{{directRegistrantId}}/packaging-submissions?format=aggregated",
+                  "raw": "{{cdpBaseUrl}}/packaging/2023/submitter-organisation/{{directRegistrantId}}/producer-material-totals",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
@@ -1422,13 +1197,7 @@
                     "2023",
                     "submitter-organisation",
                     "{{directRegistrantId}}",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
                 "description": "A known organisation in a year with no data returns 200 with an empty `items` list."
@@ -1457,7 +1226,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/100123/packaging-submissions?format=aggregated",
+                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/100123/producer-material-totals",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
@@ -1466,13 +1235,7 @@
                     "{{year}}",
                     "submitter-organisation",
                     "100123",
-                    "packaging-submissions"
-                  ],
-                  "query": [
-                    {
-                      "key": "format",
-                      "value": "aggregated"
-                    }
+                    "producer-material-totals"
                   ]
                 },
                 "description": "The organisation ID is the GUID (the external ID), not the 6-digit reference number, so this route does not match."
@@ -1496,8 +1259,8 @@
                       "pm.test('200 OK', () => pm.response.to.have.status(200));",
                       "pm.test('Describes both packaging endpoints', () => {",
                       "    const paths = Object.keys(pm.response.json().paths);",
-                      "    pm.expect(paths).to.include('/packaging/{year}/packaging-submissions');",
-                      "    pm.expect(paths).to.include('/packaging/{year}/submitter-organisation/{organisationId}/packaging-submissions');",
+                      "    pm.expect(paths).to.include('/packaging/{packagingYear}/producer-material-totals-by-submitter');",
+                      "    pm.expect(paths).to.include('/packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals');",
                       "});"
                     ]
                   }
