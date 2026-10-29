@@ -2,13 +2,13 @@
   "info": {
     "_postman_id": "ebb91176-0c09-4b65-8b6e-ba45684e95f2",
     "name": "Waste Submit Reg Packaging API",
-    "description": "Requests for waste-submit-reg-packaging-api: aggregated packaging data for the Obligations service.\n\n**Two folders, the same requests**\n\n- **1. Local**: the service running on your machine.\n- **2. CDP dev**: the service deployed in CDP dev. Needs the AWS OpenVPN and your Developer API key in `cdpApiKey`.\n\nEach folder covers the health checks, both packaging endpoints (including the 404 cases) and the API documentation. Every request has tests: right-click a folder and choose **Run folder** to run them all.\n\n**Variables** (on the collection's Variables tab)\n\n- `baseUrl`: the local service.\n- `cdpBaseUrl`: the service in CDP dev, through the developer API key gateway.\n- `cdpApiKey`: your Developer API key for dev. Use the **Current value** column.\n- `year`: the packaging year. The stub has data for 2024.\n- `directRegistrantId`, `complianceSchemeId`: the two submitters in the stub data.\n\nThe service is still serving stub data, so the numbers are examples.",
+    "description": "Requests for waste-submit-reg-packaging-api: aggregated packaging data for the Obligations service.\n\n**Two folders, the same requests**\n\n- **1. Local**: the service running on your machine, calling a locally-running epr-common-data-api for real data.\n- **2. CDP dev**: the service deployed in CDP dev. Needs the AWS OpenVPN and your Developer API key in `cdpApiKey`.\n\nEach folder covers the health checks, both packaging endpoints (including their edge cases) and the API documentation. Every request has tests: right-click a folder and choose **Run folder** to run them all.\n\n**Variables** (on the collection's Variables tab)\n\n- `baseUrl`: the local service.\n- `cdpBaseUrl`: the service in CDP dev, through the developer API key gateway.\n- `cdpApiKey`: your Developer API key for dev. Use the **Current value** column.\n- `year`: a packaging year with approved submissions in your environment.\n- `directRegistrantId`, `complianceSchemeId`: a direct registrant's and a compliance scheme's `submitterOrganisationId` for that year. Default to a nil GUID placeholder - run **2. Producer material totals by submitter** first and copy real IDs from its response into the **Current value** column.\n\nThe service now serves real data from epr-common-data-api (ultimately Synapse/dev9), so exact values depend on your environment - the tests check shape and invariants rather than specific numbers, except where noted.\n\nThe single-submitter endpoint's `404` for an unknown organisation is a declared but currently unreachable case: epr-common-data-api can't yet tell \"this organisation doesn't exist\" apart from \"this organisation exists but has nothing approved this year\" - both return `200` with empty `items`. See the README and SUB-410's plan doc.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
       "name": "1. Local",
-      "description": "Start Postgres and the service first, from the repo root:\n\n```\ndocker compose up -d postgres\ndotnet run --project WasteSubmitRegPackagingApi\n```\n\nThe service listens on http://localhost:8085. Every request has tests, so you can check the lot in one go: right-click this folder and choose **Run folder**.",
+      "description": "Start Postgres, a locally-running [epr-common-data-api](https://github.com/DEFRA/epr-common-data-api) (pointed at dev9), then this service, from the repo root:\n\n```\ndocker compose up -d postgres\ndotnet run --project WasteSubmitRegPackagingApi\n```\n\n`appsettings.Development.json` points `CommonDataApi:BaseUrl` at `https://localhost:5001` - without epr-common-data-api running there, the packaging endpoints return a `500`.\n\nThe service listens on http://localhost:8085. Every request has tests, so you can check the lot in one go: right-click this folder and choose **Run folder**.",
       "item": [
         {
           "name": "1. Health",
@@ -134,7 +134,7 @@
                     "producer-material-totals-by-submitter"
                   ]
                 },
-                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `producers`: one block per producer, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
+                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `producers`: one block per producer, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nSet `year` on the collection to one with approved submissions in your environment."
               },
               "response": [
                 {
@@ -186,13 +186,13 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/2023/producer-material-totals-by-submitter",
+                  "raw": "{{baseUrl}}/packaging/2099/producer-material-totals-by-submitter",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
-                    "2023",
+                    "2099",
                     "producer-material-totals-by-submitter"
                   ]
                 },
@@ -298,8 +298,7 @@
                       "    pm.expect(body.items).to.have.lengthOf(1);",
                       "    pm.expect(body.items[0].producerOrganisationId).to.eql(pm.variables.get('directRegistrantId'));",
                       "    checkProducer(body.items[0]);",
-                      "});",
-                      "pm.test('No joiner or leaver events', () => pm.expect(body.items[0].events).to.eql([]));"
+                      "});"
                     ]
                   }
                 }
@@ -357,7 +356,7 @@
               ]
             },
             {
-              "name": "Compliance scheme (members joining, leaving and rejoining)",
+              "name": "Compliance scheme",
               "event": [
                 {
                   "listen": "test",
@@ -383,23 +382,9 @@
                       "    });",
                       "};",
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
-                      "pm.test('One item per scheme member', () => {",
-                      "    pm.expect(body.items).to.have.lengthOf(4);",
+                      "pm.test('At least one member, each shaped correctly', () => {",
+                      "    pm.expect(body.items.length).to.be.above(0);",
                       "    body.items.forEach(checkProducer);",
-                      "});",
-                      "const eventsOf = (id) => body.items.find(o => o.producerOrganisationId === id).events;",
-                      "pm.test('A member that joined has one Joined event with code 3', () => {",
-                      "    pm.expect(eventsOf('33333333-3333-4333-8333-333333333333')).to.eql([{ code: 3, action: 'Joined', date: '2025-07-05' }]);",
-                      "});",
-                      "pm.test('A member that left has one Left event with code 13', () => {",
-                      "    pm.expect(eventsOf('44444444-4444-4444-8444-444444444444')).to.eql([{ code: 13, action: 'Left', date: '2025-09-30' }]);",
-                      "});",
-                      "pm.test('A member that joined, left and rejoined has all three events, oldest first', () => {",
-                      "    pm.expect(eventsOf('55555555-5555-4555-8555-555555555555')).to.eql([",
-                      "        { code: 1, action: 'Joined', date: '2025-03-03' },",
-                      "        { code: 13, action: 'Left', date: '2025-07-14' },",
-                      "        { code: 1, action: 'Joined', date: '2025-10-01' }",
-                      "    ]);",
                       "});"
                     ]
                   }
@@ -421,7 +406,7 @@
                     "producer-material-totals"
                   ]
                 },
-                "description": "A compliance scheme returns one item per member, each with its `events`: every time it joined or left during the year, oldest first. In the stub data one member joined (code 3), one resigned (code 13), and one joined, resigned and rejoined (codes 1, 13, 1). Codes are numbered as in the GOV.UK registration file guidance, and `action` is `Joined` or `Left`."
+                "description": "A compliance scheme returns one item per member, each with its `events`: every time it joined or left during the year, oldest first. Codes are numbered as in the GOV.UK registration file guidance, and `action` is `Joined` or `Left`. Real data currently shows at most one event per producer (see the README's note on `sp_GetApprovedSubmissionsMycWithObligations_ProducerIdFix`), so exact codes and dates depend on your environment."
               },
               "response": [
                 {
@@ -458,15 +443,15 @@
               ]
             },
             {
-              "name": "Unknown organisation (404)",
+              "name": "Unknown or no-submission organisation (empty, known gap)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
-                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Submitter organisation not found'));"
+                      "pm.test('200 OK, not 404', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns an empty items list', () => pm.expect(pm.response.json()).to.eql({ items: [] }));"
                     ]
                   }
                 }
@@ -487,73 +472,7 @@
                     "producer-material-totals"
                   ]
                 },
-                "description": "A submitter organisation that does not exist returns 404 with a problem details body."
-              },
-              "response": [
-                {
-                  "name": "404: unknown organisation",
-                  "originalRequest": {
-                    "method": "GET",
-                    "header": [],
-                    "url": {
-                      "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/99999999-9999-4999-8999-999999999999/producer-material-totals",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "packaging",
-                        "{{year}}",
-                        "submitter-organisation",
-                        "99999999-9999-4999-8999-999999999999",
-                        "producer-material-totals"
-                      ]
-                    },
-                    "description": "A submitter organisation that does not exist returns 404 with a problem details body."
-                  },
-                  "status": "Not Found",
-                  "code": 404,
-                  "_postman_previewlanguage": "json",
-                  "header": [
-                    {
-                      "key": "Content-Type",
-                      "value": "application/json; charset=utf-8"
-                    }
-                  ],
-                  "body": "{\n  \"type\": \"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\n  \"title\": \"Submitter organisation not found\",\n  \"status\": 404,\n  \"detail\": \"No submitter organisation with ID 99999999-9999-4999-8999-999999999999\"\n}"
-                }
-              ]
-            },
-            {
-              "name": "Known organisation with no submissions (empty)",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                      "pm.test('Returns an empty items list', () => pm.expect(pm.response.json()).to.eql({ items: [] }));"
-                    ]
-                  }
-                }
-              ],
-              "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/packaging/{{year}}/submitter-organisation/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/producer-material-totals",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "packaging",
-                    "{{year}}",
-                    "submitter-organisation",
-                    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-                    "producer-material-totals"
-                  ]
-                },
-                "description": "A submitter organisation that exists but has no approved submission for the year returns 200 with an empty `items` list. In the stub this is bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb."
+                "description": "The `404` response is declared but currently unreachable: epr-common-data-api can't yet tell \"this submitter doesn't exist\" apart from \"this submitter exists but has nothing approved this year\" - both return `200` with empty `items`. Flagged as an open gap in the SUB-410 plan doc. This single request now covers both an unknown organisation and a known one with no approved submission."
               },
               "response": []
             },
@@ -575,13 +494,13 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/packaging/2023/submitter-organisation/{{directRegistrantId}}/producer-material-totals",
+                  "raw": "{{baseUrl}}/packaging/2099/submitter-organisation/{{directRegistrantId}}/producer-material-totals",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "packaging",
-                    "2023",
+                    "2099",
                     "submitter-organisation",
                     "{{directRegistrantId}}",
                     "producer-material-totals"
@@ -702,7 +621,7 @@
     },
     {
       "name": "2. CDP dev",
-      "description": "The same requests against the service deployed in CDP dev.\n\n**Before you start**\n\n1. Connect the AWS OpenVPN.\n2. Get a Developer API key for **dev** from your profile in the CDP Portal: https://portal.cdp-int.defra.cloud/user-profile\n3. Paste it into the `cdpApiKey` collection variable, in the **Current value** column, so it stays on your machine and is not shared if the collection is exported.\n\nThen right-click this folder and choose **Run folder**.\n\nA protected-zone service cannot be reached directly from a laptop, so every request goes through the `ephemeral-protected` gateway with your key in the `x-api-key` header. The gateway gives up after about 5 seconds.",
+      "description": "The same requests against the service deployed in CDP dev.\n\n**Before you start**\n\n1. Connect the AWS OpenVPN.\n2. Get a Developer API key for **dev** from your profile in the CDP Portal: https://portal.cdp-int.defra.cloud/user-profile\n3. Paste it into the `cdpApiKey` collection variable, in the **Current value** column, so it stays on your machine and is not shared if the collection is exported.\n\nThen right-click this folder and choose **Run folder**.\n\nA protected-zone service cannot be reached directly from a laptop, so every request goes through the `ephemeral-protected` gateway with your key in the `x-api-key` header. The gateway gives up after about 5 seconds.\n\n**Known limitation:** this collection matches the code once it is deployed with the real epr-common-data-api provider. Until SUB-410's Phase 3 cross-platform networking lands and `CommonDataApi__BaseUrl` is set for this environment in cdp-app-config, the version deployed to CDP dev may still be the stub-based one, or may fail to start.",
       "event": [
         {
           "listen": "prerequest",
@@ -868,7 +787,7 @@
                     "producer-material-totals-by-submitter"
                   ]
                 },
-                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `producers`: one block per producer, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nThe stub has data for 2024 only."
+                "description": "Every approved submission for `{{year}}`. Each entry is a submitter (a direct registrant or a compliance scheme) with `producers`: one block per producer, with its joiner and leaver `events` and its packaging in whole kilograms per material.\n\nSet `year` on the collection to one with approved submissions in your environment."
               },
               "response": []
             },
@@ -895,13 +814,13 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/2023/producer-material-totals-by-submitter",
+                  "raw": "{{cdpBaseUrl}}/packaging/2099/producer-material-totals-by-submitter",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
-                    "2023",
+                    "2099",
                     "producer-material-totals-by-submitter"
                   ]
                 },
@@ -982,8 +901,7 @@
                       "    pm.expect(body.items).to.have.lengthOf(1);",
                       "    pm.expect(body.items[0].producerOrganisationId).to.eql(pm.variables.get('directRegistrantId'));",
                       "    checkProducer(body.items[0]);",
-                      "});",
-                      "pm.test('No joiner or leaver events', () => pm.expect(body.items[0].events).to.eql([]));"
+                      "});"
                     ]
                   }
                 }
@@ -1014,7 +932,7 @@
               "response": []
             },
             {
-              "name": "Compliance scheme (members joining, leaving and rejoining)",
+              "name": "Compliance scheme",
               "event": [
                 {
                   "listen": "test",
@@ -1040,23 +958,9 @@
                       "    });",
                       "};",
                       "pm.test('Top level is items only', () => pm.expect(Object.keys(body)).to.eql(['items']));",
-                      "pm.test('One item per scheme member', () => {",
-                      "    pm.expect(body.items).to.have.lengthOf(4);",
+                      "pm.test('At least one member, each shaped correctly', () => {",
+                      "    pm.expect(body.items.length).to.be.above(0);",
                       "    body.items.forEach(checkProducer);",
-                      "});",
-                      "const eventsOf = (id) => body.items.find(o => o.producerOrganisationId === id).events;",
-                      "pm.test('A member that joined has one Joined event with code 3', () => {",
-                      "    pm.expect(eventsOf('33333333-3333-4333-8333-333333333333')).to.eql([{ code: 3, action: 'Joined', date: '2025-07-05' }]);",
-                      "});",
-                      "pm.test('A member that left has one Left event with code 13', () => {",
-                      "    pm.expect(eventsOf('44444444-4444-4444-8444-444444444444')).to.eql([{ code: 13, action: 'Left', date: '2025-09-30' }]);",
-                      "});",
-                      "pm.test('A member that joined, left and rejoined has all three events, oldest first', () => {",
-                      "    pm.expect(eventsOf('55555555-5555-4555-8555-555555555555')).to.eql([",
-                      "        { code: 1, action: 'Joined', date: '2025-03-03' },",
-                      "        { code: 13, action: 'Left', date: '2025-07-14' },",
-                      "        { code: 1, action: 'Joined', date: '2025-10-01' }",
-                      "    ]);",
                       "});"
                     ]
                   }
@@ -1083,20 +987,20 @@
                     "producer-material-totals"
                   ]
                 },
-                "description": "A compliance scheme returns one item per member, each with its `events`: every time it joined or left during the year, oldest first. In the stub data one member joined (code 3), one resigned (code 13), and one joined, resigned and rejoined (codes 1, 13, 1). Codes are numbered as in the GOV.UK registration file guidance, and `action` is `Joined` or `Left`."
+                "description": "A compliance scheme returns one item per member, each with its `events`: every time it joined or left during the year, oldest first. Codes are numbered as in the GOV.UK registration file guidance, and `action` is `Joined` or `Left`. Real data currently shows at most one event per producer (see the README's note on `sp_GetApprovedSubmissionsMycWithObligations_ProducerIdFix`), so exact codes and dates depend on your environment."
               },
               "response": []
             },
             {
-              "name": "Unknown organisation (404)",
+              "name": "Unknown or no-submission organisation (empty, known gap)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
-                      "pm.test('Explains what was not found', () => pm.expect(pm.response.json().title).to.eql('Submitter organisation not found'));"
+                      "pm.test('200 OK, not 404', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns an empty items list', () => pm.expect(pm.response.json()).to.eql({ items: [] }));"
                     ]
                   }
                 }
@@ -1122,46 +1026,7 @@
                     "producer-material-totals"
                   ]
                 },
-                "description": "A submitter organisation that does not exist returns 404 with a problem details body."
-              },
-              "response": []
-            },
-            {
-              "name": "Known organisation with no submissions (empty)",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                      "pm.test('Returns an empty items list', () => pm.expect(pm.response.json()).to.eql({ items: [] }));"
-                    ]
-                  }
-                }
-              ],
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "x-api-key",
-                    "value": "{{cdpApiKey}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/{{year}}/submitter-organisation/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/producer-material-totals",
-                  "host": [
-                    "{{cdpBaseUrl}}"
-                  ],
-                  "path": [
-                    "packaging",
-                    "{{year}}",
-                    "submitter-organisation",
-                    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-                    "producer-material-totals"
-                  ]
-                },
-                "description": "A submitter organisation that exists but has no approved submission for the year returns 200 with an empty `items` list. In the stub this is bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb."
+                "description": "The `404` response is declared but currently unreachable: epr-common-data-api can't yet tell \"this submitter doesn't exist\" apart from \"this submitter exists but has nothing approved this year\" - both return `200` with empty `items`. Flagged as an open gap in the SUB-410 plan doc. This single request now covers both an unknown organisation and a known one with no approved submission."
               },
               "response": []
             },
@@ -1188,13 +1053,13 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{cdpBaseUrl}}/packaging/2023/submitter-organisation/{{directRegistrantId}}/producer-material-totals",
+                  "raw": "{{cdpBaseUrl}}/packaging/2099/submitter-organisation/{{directRegistrantId}}/producer-material-totals",
                   "host": [
                     "{{cdpBaseUrl}}"
                   ],
                   "path": [
                     "packaging",
-                    "2023",
+                    "2099",
                     "submitter-organisation",
                     "{{directRegistrantId}}",
                     "producer-material-totals"
@@ -1348,11 +1213,11 @@
     },
     {
       "key": "directRegistrantId",
-      "value": "11111111-1111-4111-8111-111111111111"
+      "value": "00000000-0000-0000-0000-000000000000"
     },
     {
       "key": "complianceSchemeId",
-      "value": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+      "value": "00000000-0000-0000-0000-000000000000"
     }
   ]
 }
