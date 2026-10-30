@@ -56,13 +56,11 @@ static void ConfigureServices(WebApplicationBuilder builder)
     ConfigureHttpClients(services);
     ConfigureMongo(services, configuration);
     ConfigurePostgres(services, configuration);
+    ConfigureCommonDataApi(services, configuration);
     ConfigureOpenApi(services);
 
     services.AddHealthChecks()
         .AddPostgres();
-
-    // App services
-    services.AddSingleton<IApprovedSubmissionsProvider, StubApprovedSubmissionsProvider>();
 }
 
 [ExcludeFromCodeCoverage]
@@ -115,6 +113,24 @@ static void ConfigurePostgres(IServiceCollection services, IConfiguration config
 
     services.AddSingleton(serviceProvider =>
         PostgresDataSourceFactory.Create(serviceProvider.GetRequiredService<IOptions<PostgresConfig>>().Value));
+}
+
+[ExcludeFromCodeCoverage]
+static void ConfigureCommonDataApi(IServiceCollection services, IConfiguration configuration)
+{
+    services
+        .AddOptions<CommonDataApiConfig>()
+        .Bind(configuration.GetRequiredSection("CommonDataApi"))
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+
+    services
+        .AddHttpClientWithTracingAndProxy<IApprovedSubmissionsProvider, CommonDataApiApprovedSubmissionsProvider>()
+        .ConfigureHttpClient((serviceProvider, client) =>
+        {
+            var config = serviceProvider.GetRequiredService<IOptions<CommonDataApiConfig>>().Value;
+            client.BaseAddress = new Uri(config.BaseUrl.TrimEnd('/') + "/api/submissions/");
+        });
 }
 
 [ExcludeFromCodeCoverage]
