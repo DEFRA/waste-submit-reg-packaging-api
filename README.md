@@ -164,8 +164,10 @@ client is an entry in the `Acl:Clients` access control list:
 
 The packaging submit frontend calls as client `EprPackagingSubmitFrontend`.
 
-Endpoints opt in with `.RequireAuthorization(PolicyNames.Read)` and
-`.AddEndpointFilter<AllowedEndpointFilter>()`. The outcomes are:
+Endpoints opt in with `.RequireServiceAuthorization(PolicyNames.Read)`, which applies the scope policy and the
+`AllowedEndpoints` filter together. `EndpointSecurityTest` fails the build if an endpoint uses `RequireAuthorization` on its own.
+Client ids are matched case-insensitively and secrets are compared in constant time. Every client is validated at
+startup: it must be an `ApiKey` client with a secret and known scopes (`read`, `write`, `admin`). The outcomes are:
 
 - no credentials, or wrong credentials: `401`, with a `WWW-Authenticate: Basic` challenge
 - a known client without the scope: `403`

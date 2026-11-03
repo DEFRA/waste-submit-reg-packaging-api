@@ -19,8 +19,7 @@ public static class DescribeEndpoints
             .WithName(EndpointName)
             .WithTags("Service")
             .WithSummary("Name of this service. Requires service-to-service authentication.")
-            .RequireAuthorization(PolicyNames.Read)
-            .AddEndpointFilter<AllowedEndpointFilter>();
+            .RequireServiceAuthorization(PolicyNames.Read);
 
     private static Ok<DescribeResponse> Describe() => TypedResults.Ok(new DescribeResponse(ServiceName));
 }

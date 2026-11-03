@@ -44,6 +44,28 @@ public class AclOptionsValidatorTests
     }
 
     [Fact]
+    public void An_oauth_client_is_invalid_because_only_api_keys_are_supported()
+    {
+        var result = Validate(new AclOptions.Client { Type = AclOptions.ClientType.OAuth, Scopes = ["read"] });
+
+        Assert.True(result.Failed);
+        Assert.Contains(
+            "Acl:Clients:Client:Type 'OAuth' is not supported. This service only accepts ApiKey clients.",
+            result.Failures!);
+    }
+
+    [Theory]
+    [InlineData("Read")]
+    [InlineData("reader")]
+    public void A_client_with_an_unknown_scope_is_invalid(string scope)
+    {
+        var result = Validate(new AclOptions.Client { Type = AclOptions.ClientType.ApiKey, Secret = "s", Scopes = ["read", scope] });
+
+        Assert.True(result.Failed);
+        Assert.Contains($"Acl:Clients:Client:Scopes '{scope}' is not a known scope (admin, read, write).", result.Failures!);
+    }
+
+    [Fact]
     public void A_client_without_scopes_is_invalid()
     {
         var result = Validate(new AclOptions.Client { Type = AclOptions.ClientType.ApiKey, Secret = "s", Scopes = [] });

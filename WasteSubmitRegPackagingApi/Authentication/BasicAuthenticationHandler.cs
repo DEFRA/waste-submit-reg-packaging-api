@@ -78,11 +78,14 @@ public class BasicAuthenticationHandler(
     }
 
     /// <summary>
-    /// Constant-time, so response timing does not reveal how much of a guessed secret is right.
+    /// Compares fixed-length hashes in constant time, so response timing reveals neither how much of
+    /// a guessed secret is right nor how long the secret is.
     /// </summary>
     private static bool SecretsMatch(string? expected, string actual) =>
         !string.IsNullOrEmpty(expected)
-        && CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(actual));
+        && CryptographicOperations.FixedTimeEquals(
+            SHA256.HashData(Encoding.UTF8.GetBytes(expected)),
+            SHA256.HashData(Encoding.UTF8.GetBytes(actual)));
 
     private static bool TryDecodeCredentials(string? parameter, out string clientId, out string secret)
     {

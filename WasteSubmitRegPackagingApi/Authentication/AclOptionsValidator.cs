@@ -5,8 +5,8 @@ namespace WasteSubmitRegPackagingApi.Authentication;
 /// <summary>
 /// Validates each client in the access control list. Data annotations only check the top-level
 /// <see cref="AclOptions"/> and never look inside the <c>Clients</c> dictionary, so without this a
-/// half-configured client (no Type, or an ApiKey client with no Secret) would start fine and then
-/// fail every call with a 401.
+/// half-configured client (no Type, an unsupported Type, an ApiKey client with no Secret, or a
+/// mistyped scope) would start fine and then fail every call with a 401 or 403.
 /// </summary>
 public sealed class AclOptionsValidator : IValidateOptions<AclOptions>
 {
@@ -18,14 +18,19 @@ public sealed class AclOptionsValidator : IValidateOptions<AclOptions>
         {
             if (client.Type is null)
                 failures.Add($"Acl:Clients:{clientId}:Type is required.");
-            else if (!Enum.IsDefined(client.Type.Value))
-                failures.Add($"Acl:Clients:{clientId}:Type '{client.Type}' is not a known client type.");
+            else if (client.Type != AclOptions.ClientType.ApiKey)
+                failures.Add(
+                    $"Acl:Clients:{clientId}:Type '{client.Type}' is not supported. This service only accepts ApiKey clients.");
 
             if (client.Type == AclOptions.ClientType.ApiKey && string.IsNullOrWhiteSpace(client.Secret))
                 failures.Add($"Acl:Clients:{clientId}:Secret is required for an ApiKey client.");
 
             if (client.Scopes is null || client.Scopes.Length == 0)
                 failures.Add($"Acl:Clients:{clientId}:Scopes must contain at least one scope.");
+            else
+                failures.AddRange(client.Scopes
+                    .Where(scope => !Scopes.All.Contains(scope, StringComparer.Ordinal))
+                    .Select(scope => $"Acl:Clients:{clientId}:Scopes '{scope}' is not a known scope ({string.Join(", ", Scopes.All)})."));
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

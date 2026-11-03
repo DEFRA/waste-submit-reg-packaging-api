@@ -89,6 +89,20 @@ public class DescribeEndpointsTest
     }
 
     [Fact]
+    public async Task Client_id_from_config_is_matched_case_insensitively()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new AclTestFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            AclTestFactory.Basic(AclTestFactory.ClientId.ToLowerInvariant(), AclTestFactory.Secret);
+
+        var response = await client.GetAsync("/describe", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Authenticated_client_not_allowed_the_endpoint_gets_not_found()
     {
         var cancellationToken = TestContext.Current.CancellationToken;

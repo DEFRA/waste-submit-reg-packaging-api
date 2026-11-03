@@ -140,6 +140,26 @@ public class BasicAuthenticationHandlerTests
     }
 
     [Fact]
+    public async Task WhenClientIdCasingDiffers_ShouldAuthenticate()
+    {
+        AddClient("Client", AclOptions.ClientType.ApiKey, "secret");
+        await Subject.InitializeAsync(Scheme(), ContextWithBasic("CLIENT:secret"));
+
+        var result = await Subject.AuthenticateAsync();
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task WhenSecretCasingDiffers_ShouldFail()
+    {
+        AddClient("client", AclOptions.ClientType.ApiKey, "secret");
+        await Subject.InitializeAsync(Scheme(), ContextWithBasic("client:SECRET"));
+
+        await AuthenticateAndAssertFailure();
+    }
+
+    [Fact]
     public async Task WhenSecretContainsColon_ShouldAuthenticate()
     {
         AddClient("client", AclOptions.ClientType.ApiKey, "sec:ret");

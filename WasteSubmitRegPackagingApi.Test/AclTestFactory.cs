@@ -6,8 +6,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace WasteSubmitRegPackagingApi.Test;
 
 /// <summary>
-/// Boots the real application with a known access control list, independent of
-/// appsettings.Development.json, so the auth tests say exactly which clients exist.
+/// Boots the real application with known test clients added to the access control list. It runs in
+/// the Development environment, so the <c>Developer</c> client from appsettings.Development.json is
+/// present too; tests use only the clients defined here.
 /// </summary>
 public sealed class AclTestFactory(IReadOnlyDictionary<string, string?>? extraSettings = null)
     : WebApplicationFactory<Program>

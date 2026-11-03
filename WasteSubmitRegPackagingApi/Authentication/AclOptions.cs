@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace WasteSubmitRegPackagingApi.Authentication;
 
 /// <summary>
@@ -11,20 +9,23 @@ namespace WasteSubmitRegPackagingApi.Authentication;
 /// </summary>
 public class AclOptions
 {
-    public Dictionary<string, Client> Clients { get; init; } = new();
+    /// <summary>
+    /// Case-insensitive, like .NET configuration keys, so a client id typed with different casing in
+    /// app config and CDP secrets still resolves to one client.
+    /// </summary>
+    public Dictionary<string, Client> Clients { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     public class Client
     {
         /// <summary>
         /// Nullable so a client whose Type is missing from config fails validation at startup,
         /// rather than silently defaulting to <see cref="ClientType.OAuth"/> and failing every call.
+        /// Every client is validated by <see cref="AclOptionsValidator"/>.
         /// </summary>
-        [Required]
         public required ClientType? Type { get; init; }
 
         public string? Secret { get; init; }
 
-        [Required]
         public required string[] Scopes { get; init; } = [];
 
         public string[] AllowedEndpoints { get; set; } = [];
