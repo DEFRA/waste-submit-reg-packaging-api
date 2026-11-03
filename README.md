@@ -167,7 +167,7 @@ The packaging submit frontend calls as client `EprPackagingSubmitFrontend`.
 Endpoints opt in with `.RequireAuthorization(PolicyNames.Read)` and
 `.AddEndpointFilter<AllowedEndpointFilter>()`. The outcomes are:
 
-- no credentials, or wrong credentials: `401`
+- no credentials, or wrong credentials: `401`, with a `WWW-Authenticate: Basic` challenge
 - a known client without the scope: `403`
 - a known client without the endpoint in `AllowedEndpoints`: `404`
 
@@ -180,7 +180,7 @@ caller. Use it to prove a caller's credentials work end to end.
 the service unhealthy. They are mapped with `.AllowAnonymous()`, and `HealthEndpointsAnonymousTest`
 fails the build if that changes or a fallback policy is added.
 
-Locally, `appsettings.Development.json` defines a `Developer` client:
+Locally, `appsettings.Development.json` (for `dotnet run`) and `compose.yml` (for Docker Compose) define a `Developer` client:
 
 ```bash
 curl -i http://localhost:8085/describe                                # 401

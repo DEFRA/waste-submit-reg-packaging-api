@@ -118,6 +118,28 @@ public class BasicAuthenticationHandlerTests
     }
 
     [Fact]
+    public async Task WhenSchemeNameIsLowerCase_ShouldAuthenticate()
+    {
+        AddClient("client", AclOptions.ClientType.ApiKey, "secret");
+        await Subject.InitializeAsync(
+            Scheme(),
+            ContextWithAuthorization($"basic {Convert.ToBase64String("client:secret"u8.ToArray())}"));
+
+        var result = await Subject.AuthenticateAsync();
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task WhenClientHasNoSecretConfigured_ShouldFail()
+    {
+        AclOptions.Clients.Add("client", new AclOptions.Client { Type = AclOptions.ClientType.ApiKey, Secret = null, Scopes = [] });
+        await Subject.InitializeAsync(Scheme(), ContextWithBasic("client:secret"));
+
+        await AuthenticateAndAssertFailure();
+    }
+
+    [Fact]
     public async Task WhenSecretContainsColon_ShouldAuthenticate()
     {
         AddClient("client", AclOptions.ClientType.ApiKey, "sec:ret");

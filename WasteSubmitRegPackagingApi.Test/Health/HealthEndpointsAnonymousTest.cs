@@ -1,6 +1,5 @@
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -128,14 +127,8 @@ public class HealthEndpointsAnonymousTest(PostgresFixture postgres) : IClassFixt
         ["SslMode"] = "Disable"
     };
 
-    private static WebApplicationFactory<Program> AppWithPostgres(IReadOnlyDictionary<string, string?> settings) =>
-        AclTestFactory.Create().WithWebHostBuilder(builder =>
-        {
-            foreach (var (key, value) in settings)
-            {
-                builder.UseSetting($"Postgres:{key}", value);
-            }
-        });
+    private static AclTestFactory AppWithPostgres(IReadOnlyDictionary<string, string?> settings) =>
+        new(settings.ToDictionary(setting => $"Postgres:{setting.Key}", setting => setting.Value));
 
     private static HttpClient ClientSending(WebApplicationFactory<Program> factory, string? authorization)
     {

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 
 namespace WasteSubmitRegPackagingApi.Authentication;
 
@@ -16,6 +17,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddAuthenticationAuthorization(this IServiceCollection services)
     {
         services.AddOptions<AclOptions>().BindConfiguration("Acl").ValidateDataAnnotations().ValidateOnStart();
+        services.AddSingleton<IValidateOptions<AclOptions>, AclOptionsValidator>();
         services.AddTransient<AllowedEndpointFilter>();
 
         services

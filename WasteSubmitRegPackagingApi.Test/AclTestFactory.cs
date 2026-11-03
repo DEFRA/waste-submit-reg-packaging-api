@@ -9,7 +9,8 @@ namespace WasteSubmitRegPackagingApi.Test;
 /// Boots the real application with a known access control list, independent of
 /// appsettings.Development.json, so the auth tests say exactly which clients exist.
 /// </summary>
-public static class AclTestFactory
+public sealed class AclTestFactory(IReadOnlyDictionary<string, string?>? extraSettings = null)
+    : WebApplicationFactory<Program>
 {
     public const string ClientId = "TestClient";
     public const string Secret = "test-secret";
@@ -17,25 +18,28 @@ public static class AclTestFactory
     /// <summary>Authenticates, has the read scope, but is not allowed to call Describe.</summary>
     public const string NoEndpointsClientId = "NoEndpointsClient";
 
-    /// <summary>Authenticates and is allowed Describe, but has no read scope.</summary>
-    public const string NoScopeClientId = "NoScopeClient";
+    /// <summary>Authenticates and is allowed Describe, but has write rather than the read scope.</summary>
+    public const string NoReadScopeClientId = "NoReadScopeClient";
 
-    public static WebApplicationFactory<Program> Create(WebApplicationFactory<Program>? factory = null) =>
-        (factory ?? new WebApplicationFactory<Program>()).WithWebHostBuilder(builder =>
-        {
-            builder.UseSetting($"Acl:Clients:{ClientId}:Type", "ApiKey");
-            builder.UseSetting($"Acl:Clients:{ClientId}:Secret", Secret);
-            builder.UseSetting($"Acl:Clients:{ClientId}:Scopes:0", "read");
-            builder.UseSetting($"Acl:Clients:{ClientId}:AllowedEndpoints:0", "Describe");
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseSetting($"Acl:Clients:{ClientId}:Type", "ApiKey");
+        builder.UseSetting($"Acl:Clients:{ClientId}:Secret", Secret);
+        builder.UseSetting($"Acl:Clients:{ClientId}:Scopes:0", "read");
+        builder.UseSetting($"Acl:Clients:{ClientId}:AllowedEndpoints:0", "Describe");
 
-            builder.UseSetting($"Acl:Clients:{NoEndpointsClientId}:Type", "ApiKey");
-            builder.UseSetting($"Acl:Clients:{NoEndpointsClientId}:Secret", Secret);
-            builder.UseSetting($"Acl:Clients:{NoEndpointsClientId}:Scopes:0", "read");
+        builder.UseSetting($"Acl:Clients:{NoEndpointsClientId}:Type", "ApiKey");
+        builder.UseSetting($"Acl:Clients:{NoEndpointsClientId}:Secret", Secret);
+        builder.UseSetting($"Acl:Clients:{NoEndpointsClientId}:Scopes:0", "read");
 
-            builder.UseSetting($"Acl:Clients:{NoScopeClientId}:Type", "ApiKey");
-            builder.UseSetting($"Acl:Clients:{NoScopeClientId}:Secret", Secret);
-            builder.UseSetting($"Acl:Clients:{NoScopeClientId}:AllowedEndpoints:0", "Describe");
-        });
+        builder.UseSetting($"Acl:Clients:{NoReadScopeClientId}:Type", "ApiKey");
+        builder.UseSetting($"Acl:Clients:{NoReadScopeClientId}:Secret", Secret);
+        builder.UseSetting($"Acl:Clients:{NoReadScopeClientId}:Scopes:0", "write");
+        builder.UseSetting($"Acl:Clients:{NoReadScopeClientId}:AllowedEndpoints:0", "Describe");
+
+        foreach (var (key, value) in extraSettings ?? new Dictionary<string, string?>())
+            builder.UseSetting(key, value);
+    }
 
     public static AuthenticationHeaderValue Basic(string clientId, string secret) =>
         new("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{secret}")));

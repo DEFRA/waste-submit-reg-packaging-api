@@ -15,8 +15,12 @@ public class AclOptions
 
     public class Client
     {
+        /// <summary>
+        /// Nullable so a client whose Type is missing from config fails validation at startup,
+        /// rather than silently defaulting to <see cref="ClientType.OAuth"/> and failing every call.
+        /// </summary>
         [Required]
-        public required ClientType Type { get; init; }
+        public required ClientType? Type { get; init; }
 
         public string? Secret { get; init; }
 

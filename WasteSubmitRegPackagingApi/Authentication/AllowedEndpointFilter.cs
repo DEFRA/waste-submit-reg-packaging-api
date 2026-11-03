@@ -6,7 +6,10 @@ namespace WasteSubmitRegPackagingApi.Authentication;
 /// <summary>
 /// Restricts an authenticated client to the endpoints named in its ACL entry
 /// (<see cref="AclOptions.Client.AllowedEndpoints"/>, matched against the endpoint's <c>WithName</c>).
-/// Anything else is a 404, so a client cannot discover endpoints it is not allowed to use.
+/// An endpoint not in the list returns 404.
+///
+/// Endpoint filters run after authentication and authorization, so this only applies to a caller
+/// that is authenticated and has the endpoint's scope. Others get 401 or 403 first.
 ///
 /// Copied from the Manage Obligations service (DEFRA/waste-obligations).
 /// </summary>

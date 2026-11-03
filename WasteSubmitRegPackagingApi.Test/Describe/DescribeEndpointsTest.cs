@@ -15,15 +15,31 @@ public class DescribeEndpointsTest
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [Fact]
-    public async Task Unauthenticated_request_is_refused()
+    public async Task Unauthenticated_request_is_refused_with_a_basic_challenge()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = AclTestFactory.Create();
+        await using var factory = new AclTestFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/describe", cancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var challenge = Assert.Single(response.Headers.WwwAuthenticate);
+        Assert.Equal("Basic", challenge.Scheme);
+    }
+
+    [Fact]
+    public async Task Scheme_name_is_case_insensitive()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new AclTestFactory();
+        using var client = factory.CreateClient();
+        var credentials = AclTestFactory.Basic(AclTestFactory.ClientId, AclTestFactory.Secret).Parameter;
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"basic {credentials}");
+
+        var response = await client.GetAsync("/describe", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Theory]
@@ -32,7 +48,7 @@ public class DescribeEndpointsTest
     public async Task Request_with_invalid_credentials_is_refused(string clientId, string secret)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = AclTestFactory.Create();
+        await using var factory = new AclTestFactory();
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = AclTestFactory.Basic(clientId, secret);
 
@@ -47,7 +63,7 @@ public class DescribeEndpointsTest
     public async Task Request_with_malformed_or_unsupported_authorization_is_refused(string authorization)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = AclTestFactory.Create();
+        await using var factory = new AclTestFactory();
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authorization);
 
@@ -60,7 +76,7 @@ public class DescribeEndpointsTest
     public async Task Authenticated_request_returns_the_service_name()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = AclTestFactory.Create();
+        await using var factory = new AclTestFactory();
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization =
             AclTestFactory.Basic(AclTestFactory.ClientId, AclTestFactory.Secret);
@@ -76,7 +92,7 @@ public class DescribeEndpointsTest
     public async Task Authenticated_client_not_allowed_the_endpoint_gets_not_found()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = AclTestFactory.Create();
+        await using var factory = new AclTestFactory();
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization =
             AclTestFactory.Basic(AclTestFactory.NoEndpointsClientId, AclTestFactory.Secret);
@@ -90,10 +106,10 @@ public class DescribeEndpointsTest
     public async Task Authenticated_client_without_the_read_scope_is_forbidden()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = AclTestFactory.Create();
+        await using var factory = new AclTestFactory();
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization =
-            AclTestFactory.Basic(AclTestFactory.NoScopeClientId, AclTestFactory.Secret);
+            AclTestFactory.Basic(AclTestFactory.NoReadScopeClientId, AclTestFactory.Secret);
 
         var response = await client.GetAsync("/describe", cancellationToken);
 
