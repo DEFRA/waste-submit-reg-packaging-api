@@ -27,6 +27,7 @@ can build against them while the real data source is wired in. The service is co
 | `GET /packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals` | The producers one submitter reported for: itself for a direct registrant, its members for a compliance scheme |
 | `GET /health` | Whether the service is running |
 | `GET /health/db` | Whether the service can reach Postgres |
+| `GET /describe` | The service name. Requires authentication, see [Service-to-service authentication](#service-to-service-authentication) |
 | `GET /swagger`, `GET /openapi/v1.json` | The API documentation, where Swagger is turned on |
 
 Both packaging endpoints return their results under `items`, which is empty when there is nothing for the year. The
@@ -142,6 +143,51 @@ no password. `appsettings.Development.json` points the service at it.
 `/health` leaves the database out on purpose. CDP restarts the container whenever `/health` fails, and a database blip
 should not do that.
 
+Neither health check ever requires authentication, whatever `Authorization` header is sent.
+
+## Service-to-service authentication
+
+Callers authenticate with an API key, following the pattern used by the Manage Obligations service
+([DEFRA/waste-obligations](https://github.com/DEFRA/waste-obligations)). CDP lists shared-secret
+Basic auth as a supported option in its
+[service-to-service auth guide](https://github.com/DEFRA/cdp-documentation/blob/main/how-to/service-to-service-auth.md).
+
+The key is sent as HTTP Basic credentials: `Authorization: Basic base64(clientId:secret)`. Each
+client is an entry in the `Acl:Clients` access control list:
+
+| Setting | Where it lives | Example |
+|---|---|---|
+| `Acl__Clients__{clientId}__Type` | CDP app config | `ApiKey` |
+| `Acl__Clients__{clientId}__Scopes__0` | CDP app config | `read` |
+| `Acl__Clients__{clientId}__AllowedEndpoints__0` | CDP app config | `Describe` (the endpoint's `WithName`) |
+| `Acl__Clients__{clientId}__Secret` | **CDP secrets** (portal) | never in config or source |
+
+The packaging submit frontend calls as client `EprPackagingSubmitFrontend`.
+
+Endpoints opt in with `.RequireAuthorization(PolicyNames.Read)` and
+`.AddEndpointFilter<AllowedEndpointFilter>()`. The outcomes are:
+
+- no credentials, or wrong credentials: `401`
+- a known client without the scope: `403`
+- a known client without the endpoint in `AllowedEndpoints`: `404`
+
+There is deliberately no fallback policy.
+
+**`GET /describe`** is a no-op that returns `{ "service": "waste-submit-reg-packaging-api" }` to an authenticated
+caller. Use it to prove a caller's credentials work end to end.
+
+**The health checks never require authentication.** CDP polls them, and an auth failure would mark
+the service unhealthy. They are mapped with `.AllowAnonymous()`, and `HealthEndpointsAnonymousTest`
+fails the build if that changes or a fallback policy is added.
+
+Locally, `appsettings.Development.json` defines a `Developer` client:
+
+```bash
+curl -i http://localhost:8085/describe                                # 401
+curl -i -u Developer:developer-pwd http://localhost:8085/describe     # 200
+curl -i http://localhost:8085/health                                  # 200, no auth needed
+```
+
 ## Swagger
 
 Swagger shows every endpoint, its parameters and its response shapes, and lets you call it from the browser.
@@ -176,8 +222,9 @@ tool, or send it to a team that will call the API.
 ## Postman
 
 [postman/waste-submit-reg-packaging-api.postman_collection.json](postman/waste-submit-reg-packaging-api.postman_collection.json)
-covers every endpoint: both health checks, both packaging endpoints (including the empty and 404 cases) and the API
-documentation. It has two folders with the same requests and tests on every one.
+covers every endpoint: both health checks, both packaging endpoints (including the empty and 404 cases), the API
+documentation, and (locally only) `GET /describe` with and without credentials. It has two folders with tests on every
+request.
 
 | Folder | Calls | Before you run it |
 |---|---|---|

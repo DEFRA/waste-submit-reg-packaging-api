@@ -697,6 +697,133 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "5. Service-to-service authentication",
+          "description": "`GET /describe` requires an API key sent as HTTP Basic credentials (`clientId:secret`). Locally, `appsettings.Development.json` defines the `Developer` client; its credentials are in the `s2sClientId` and `s2sClientSecret` collection variables. The health checks never require authentication.",
+          "item": [
+            {
+              "name": "Describe with an API key",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Names the service', () => pm.expect(pm.response.json()).to.eql({ service: 'waste-submit-reg-packaging-api' }));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    {
+                      "key": "username",
+                      "value": "{{s2sClientId}}",
+                      "type": "string"
+                    },
+                    {
+                      "key": "password",
+                      "value": "{{s2sClientSecret}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/describe",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "describe"
+                  ]
+                },
+                "description": "An authenticated caller gets the service name."
+              },
+              "response": []
+            },
+            {
+              "name": "Describe without credentials (401)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/describe",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "describe"
+                  ]
+                },
+                "description": "No Authorization header, so the request is refused."
+              },
+              "response": []
+            },
+            {
+              "name": "Describe with the wrong secret (401)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    {
+                      "key": "username",
+                      "value": "{{s2sClientId}}",
+                      "type": "string"
+                    },
+                    {
+                      "key": "password",
+                      "value": "wrong-secret",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/describe",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "describe"
+                  ]
+                },
+                "description": "A known client with the wrong secret is refused."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     },
@@ -1353,6 +1480,14 @@
     {
       "key": "complianceSchemeId",
       "value": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    },
+    {
+      "key": "s2sClientId",
+      "value": "Developer"
+    },
+    {
+      "key": "s2sClientSecret",
+      "value": "developer-pwd"
     }
   ]
 }

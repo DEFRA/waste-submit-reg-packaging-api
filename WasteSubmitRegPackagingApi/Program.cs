@@ -1,3 +1,5 @@
+using WasteSubmitRegPackagingApi.Authentication;
+using WasteSubmitRegPackagingApi.Describe.Endpoints;
 using WasteSubmitRegPackagingApi.Obligations.Endpoints;
 using WasteSubmitRegPackagingApi.Obligations.Services;
 using WasteSubmitRegPackagingApi.Config;
@@ -60,6 +62,10 @@ static void ConfigureServices(WebApplicationBuilder builder)
 
     services.AddHealthChecks()
         .AddPostgres();
+
+    // Service-to-service authentication (API key ACL), copied from Manage Obligations. Endpoints opt
+    // in; there is no fallback policy, so the CDP health checks stay anonymous.
+    services.AddAuthenticationAuthorization();
 
     // App services
     services.AddSingleton<IApprovedSubmissionsProvider, StubApprovedSubmissionsProvider>();
@@ -135,21 +141,25 @@ static void ConfigureMiddleware(WebApplication app)
     app.UseSerilogRequestLogging();
 
     app.UseHeaderPropagation();
+
+    app.UseAuthentication();
+    app.UseAuthorization();
 }
 
 [ExcludeFromCodeCoverage]
 static void ConfigureEndpoints(WebApplication app)
 {
     // CDP polls /health to decide whether the container is alive, so it leaves out the database.
+    // Health checks must never require authentication; HealthEndpointsAnonymousTest guards this.
     app.MapHealthChecks("/health", new HealthCheckOptions
     {
         Predicate = check => !check.Tags.Contains(PostgresHealthChecks.Tag)
-    });
+    }).AllowAnonymous();
 
     app.MapHealthChecks("/health/db", new HealthCheckOptions
     {
         Predicate = check => check.Tags.Contains(PostgresHealthChecks.Tag)
-    });
+    }).AllowAnonymous();
 
     // Off in production. Swagger:Enabled turns it on per environment.
     if (app.Configuration.GetValue<bool>("Swagger:Enabled"))
@@ -161,4 +171,6 @@ static void ConfigureEndpoints(WebApplication app)
     }
 
     app.MapObligationsEndpoints();
+
+    app.MapDescribeEndpoints();
 }
