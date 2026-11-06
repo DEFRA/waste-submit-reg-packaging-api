@@ -103,20 +103,6 @@ public class DescribeEndpointsTest
     }
 
     [Fact]
-    public async Task Authenticated_client_not_allowed_the_endpoint_gets_not_found()
-    {
-        var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new AclTestFactory();
-        using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization =
-            AclTestFactory.Basic(AclTestFactory.NoEndpointsClientId, AclTestFactory.Secret);
-
-        var response = await client.GetAsync("/describe", cancellationToken);
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
     public async Task Authenticated_client_without_the_read_scope_is_forbidden()
     {
         var cancellationToken = TestContext.Current.CancellationToken;

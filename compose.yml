@@ -91,7 +91,6 @@ services:
       Acl__Clients__Developer__Type: ApiKey
       Acl__Clients__Developer__Secret: developer-pwd
       Acl__Clients__Developer__Scopes__0: read
-      Acl__Clients__Developer__AllowedEndpoints__0: Describe
       Mongo__DatabaseUri: mongodb://mongodb:27017/
       Postgres__Host: postgres
       Postgres__UseIamAuthentication: false

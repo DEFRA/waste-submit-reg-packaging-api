@@ -159,19 +159,17 @@ client is an entry in the `Acl:Clients` access control list:
 |---|---|---|
 | `Acl__Clients__{clientId}__Type` | CDP app config | `ApiKey` |
 | `Acl__Clients__{clientId}__Scopes__0` | CDP app config | `read` |
-| `Acl__Clients__{clientId}__AllowedEndpoints__0` | CDP app config | `Describe` (the endpoint's `WithName`) |
 | `Acl__Clients__{clientId}__Secret` | **CDP secrets** (portal) | never in config or source |
 
 The packaging submit frontend calls as client `EprPackagingSubmitFrontend`.
 
-Endpoints opt in with `.RequireServiceAuthorization(PolicyNames.Read)`, which applies the scope policy and the
-`AllowedEndpoints` filter together. `EndpointSecurityTest` fails the build if an endpoint uses `RequireAuthorization` on its own.
+Endpoints opt in with `.RequireAuthorization(PolicyNames.Read)` (or `Write`/`Admin`), as in Manage Obligations, so a
+client's scopes decide what it can call. `EndpointSecurityTest` fails the build if `/describe` loses its policy.
 Client ids are matched case-insensitively and secrets are compared in constant time. Every client is validated at
 startup: it must be an `ApiKey` client with a secret and known scopes (`read`, `write`, `admin`). The outcomes are:
 
 - no credentials, or wrong credentials: `401`, with a `WWW-Authenticate: Basic` challenge
 - a known client without the scope: `403`
-- a known client without the endpoint in `AllowedEndpoints`: `404`
 
 There is deliberately no fallback policy.
 

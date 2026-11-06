@@ -18,7 +18,6 @@ public static class ServiceCollectionExtensions
     {
         services.AddOptions<AclOptions>().BindConfiguration("Acl").ValidateOnStart();
         services.AddSingleton<IValidateOptions<AclOptions>, AclOptionsValidator>();
-        services.AddTransient<AllowedEndpointFilter>();
 
         services
             .AddAuthentication(BasicAuthenticationHandler.SchemeName)
