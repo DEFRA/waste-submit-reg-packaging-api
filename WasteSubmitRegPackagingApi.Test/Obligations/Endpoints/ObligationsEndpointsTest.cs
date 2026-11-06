@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace WasteSubmitRegPackagingApi.Test.Obligations.Endpoints;
 
@@ -16,8 +15,8 @@ public class ObligationsEndpointsTest
     public async Task Filtered_endpoint_returns_a_direct_registrant_as_a_single_item()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        await using var factory = new AclTestFactory();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync(
             $"/packaging/2024/submitter-organisation/{DirectRegistrantId}/producer-material-totals", cancellationToken);
@@ -44,8 +43,8 @@ public class ObligationsEndpointsTest
     public async Task Filtered_endpoint_returns_compliance_scheme_members_with_their_events()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        await using var factory = new AclTestFactory();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync(
             $"/packaging/2024/submitter-organisation/{ComplianceSchemeId}/producer-material-totals", cancellationToken);
@@ -70,8 +69,8 @@ public class ObligationsEndpointsTest
     public async Task Filtered_endpoint_returns_every_event_for_a_member_that_joins_leaves_and_rejoins_oldest_first()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        await using var factory = new AclTestFactory();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync(
             $"/packaging/2024/submitter-organisation/{ComplianceSchemeId}/producer-material-totals", cancellationToken);
@@ -89,8 +88,8 @@ public class ObligationsEndpointsTest
     public async Task Filtered_endpoint_returns_not_found_for_an_unknown_organisation()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        await using var factory = new AclTestFactory();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync(
             $"/packaging/2024/submitter-organisation/{Guid.NewGuid()}/producer-material-totals", cancellationToken);
@@ -108,8 +107,8 @@ public class ObligationsEndpointsTest
     public async Task Filtered_endpoint_returns_empty_items_for_a_known_organisation_with_no_approved_submission(string packagingYear, string submitterOrganisationId)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        await using var factory = new AclTestFactory();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync(
             $"/packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals", cancellationToken);
@@ -124,8 +123,8 @@ public class ObligationsEndpointsTest
     public async Task Unfiltered_endpoint_returns_every_approved_submission_grouped_by_submitter()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        await using var factory = new AclTestFactory();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync("/packaging/2024/producer-material-totals-by-submitter", cancellationToken);
 
@@ -155,8 +154,8 @@ public class ObligationsEndpointsTest
     public async Task Unfiltered_endpoint_returns_empty_items_for_a_year_with_no_data()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        await using var factory = new AclTestFactory();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync("/packaging/2023/producer-material-totals-by-submitter", cancellationToken);
 
@@ -170,12 +169,49 @@ public class ObligationsEndpointsTest
     public async Task Year_must_be_a_number()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient();
+        await using var factory = new AclTestFactory();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync("/packaging/latest/producer-material-totals-by-submitter", cancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/packaging/2024/producer-material-totals-by-submitter")]
+    [InlineData($"/packaging/2024/submitter-organisation/{DirectRegistrantId}/producer-material-totals")]
+    public async Task Unauthenticated_request_is_refused(string url)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new AclTestFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync(url, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/packaging/2024/producer-material-totals-by-submitter")]
+    [InlineData($"/packaging/2024/submitter-organisation/{DirectRegistrantId}/producer-material-totals")]
+    public async Task Client_without_the_read_scope_is_forbidden(string url)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new AclTestFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            AclTestFactory.Basic(AclTestFactory.NoReadScopeClientId, AclTestFactory.Secret);
+
+        var response = await client.GetAsync(url, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    private static HttpClient CreateAuthenticatedClient(AclTestFactory factory)
+    {
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = AclTestFactory.Basic(AclTestFactory.ClientId, AclTestFactory.Secret);
+        return client;
     }
 
     private static (int Code, string? Action, string? Date) Describe(JsonElement leaverJoinerEvent) =>

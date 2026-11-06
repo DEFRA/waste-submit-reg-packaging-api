@@ -87,6 +87,10 @@ services:
       - 'compose/aws.env'
     environment:
       ASPNETCORE_URLS: http://+:8085
+      # The local-only Developer client (see appsettings.Development.json), as compose runs in Production.
+      Acl__Clients__Developer__Type: ApiKey
+      Acl__Clients__Developer__Secret: developer-pwd
+      Acl__Clients__Developer__Scopes__0: read
       Mongo__DatabaseUri: mongodb://mongodb:27017/
       Postgres__Host: postgres
       Postgres__UseIamAuthentication: false
