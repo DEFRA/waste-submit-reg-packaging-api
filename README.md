@@ -161,7 +161,7 @@ client is an entry in the `Acl:Clients` access control list:
 | `Acl__Clients__{clientId}__Scopes__0` | CDP app config | `read` |
 | `Acl__Clients__{clientId}__Secret` | **CDP secrets** (portal) | never in config or source |
 
-The packaging submit frontend calls as client `EprPackagingSubmitFrontend`.
+The packaging submit frontend (waste-submit-reg-packaging-fe) calls as client `WasteSubmitRegPackagingFrontend`. Its `Type` and `Scopes` are in the service's `defaults.env` in CDP app config, as they are the same in every environment.
 
 Endpoints opt in with `.RequireAuthorization(PolicyNames.Read)` (or `Write`/`Admin`), as in Manage Obligations, so a
 client's scopes decide what it can call. `EndpointSecurityTest` fails the build if `/describe` loses its policy.
