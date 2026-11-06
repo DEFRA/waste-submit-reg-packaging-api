@@ -23,8 +23,8 @@ can build against them while the real data source is wired in. The service is co
 
 | Endpoint | Returns |
 |---|---|
-| `GET /packaging/{packagingYear}/producer-material-totals-by-submitter` | Every approved submission for the year, grouped by submitter, with each producer's material totals. Not paged |
-| `GET /packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals` | The producers one submitter reported for: itself for a direct registrant, its members for a compliance scheme |
+| `GET /packaging/{packagingYear}/producer-material-totals-by-submitter` | Every approved submission for the year, grouped by submitter, with each producer's material totals. Not paged. Requires the `read` scope |
+| `GET /packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals` | The producers one submitter reported for: itself for a direct registrant, its members for a compliance scheme. Requires the `read` scope |
 | `GET /health` | Whether the service is running |
 | `GET /health/db` | Whether the service can reach Postgres |
 | `GET /describe` | The service name. Requires authentication, see [Service-to-service authentication](#service-to-service-authentication) |
@@ -164,7 +164,8 @@ client is an entry in the `Acl:Clients` access control list:
 The packaging submit frontend (waste-submit-reg-packaging-fe) calls as client `WasteSubmitRegPackagingFrontend`. Its `Type` and `Scopes` are in the service's `defaults.env` in CDP app config, as they are the same in every environment.
 
 Endpoints opt in with `.RequireAuthorization(PolicyNames.Read)` (or `Write`/`Admin`), as in Manage Obligations, so a
-client's scopes decide what it can call. `EndpointSecurityTest` fails the build if `/describe` loses its policy.
+client's scopes decide what it can call. The `/packaging` endpoints and `/describe` require `read`, and `EndpointSecurityTest`
+fails the build if any of them loses its policy.
 Client ids are matched case-insensitively and secrets are compared in constant time. Every client is validated at
 startup: it must be an `ApiKey` client with a secret and known scopes (`read`, `write`, `admin`). The outcomes are:
 

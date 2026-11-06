@@ -21,4 +21,19 @@ public class EndpointSecurityTest
             describe.Metadata.GetOrderedMetadata<IAuthorizeData>(),
             authorize => authorize.Policy == PolicyNames.Read);
     }
+
+    [Theory]
+    [InlineData("GetProducerMaterialTotals")]
+    [InlineData("GetProducerMaterialTotalsBySubmitter")]
+    public async Task Packaging_endpoints_require_the_read_policy(string endpointName)
+    {
+        await using var factory = new AclTestFactory();
+        var endpoint = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .Single(e => e.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName == endpointName);
+
+        Assert.Null(endpoint.Metadata.GetMetadata<IAllowAnonymous>());
+        Assert.Contains(
+            endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>(),
+            authorize => authorize.Policy == PolicyNames.Read);
+    }
 }

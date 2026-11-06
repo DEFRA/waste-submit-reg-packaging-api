@@ -261,7 +261,22 @@
               },
               "response": []
             }
-          ]
+          ],
+          "auth": {
+            "type": "basic",
+            "basic": [
+              {
+                "key": "username",
+                "value": "{{s2sClientId}}",
+                "type": "string"
+              },
+              {
+                "key": "password",
+                "value": "{{s2sClientSecret}}",
+                "type": "string"
+              }
+            ]
+          }
         },
         {
           "name": "3. One submitter",
@@ -624,7 +639,22 @@
               },
               "response": []
             }
-          ]
+          ],
+          "auth": {
+            "type": "basic",
+            "basic": [
+              {
+                "key": "username",
+                "value": "{{s2sClientId}}",
+                "type": "string"
+              },
+              {
+                "key": "password",
+                "value": "{{s2sClientSecret}}",
+                "type": "string"
+              }
+            ]
+          }
         },
         {
           "name": "4. API documentation",
@@ -829,7 +859,7 @@
     },
     {
       "name": "2. CDP dev",
-      "description": "The same requests against the service deployed in CDP dev.\n\n**Before you start**\n\n1. Connect the AWS OpenVPN.\n2. Get a Developer API key for **dev** from your profile in the CDP Portal: https://portal.cdp-int.defra.cloud/user-profile\n3. Paste it into the `cdpApiKey` collection variable, in the **Current value** column, so it stays on your machine and is not shared if the collection is exported.\n\nThen right-click this folder and choose **Run folder**.\n\nA protected-zone service cannot be reached directly from a laptop, so every request goes through the `ephemeral-protected` gateway with your key in the `x-api-key` header. The gateway gives up after about 5 seconds.",
+      "description": "The same requests against the service deployed in CDP dev.\n\n**Before you start**\n\n1. Connect the AWS OpenVPN.\n2. Get a Developer API key for **dev** from your profile in the CDP Portal: https://portal.cdp-int.defra.cloud/user-profile\n3. Paste it into the `cdpApiKey` collection variable, in the **Current value** column, so it stays on your machine and is not shared if the collection is exported.\n\nThen right-click this folder and choose **Run folder**.\n\nA protected-zone service cannot be reached directly from a laptop, so every request goes through the `ephemeral-protected` gateway with your key in the `x-api-key` header. The gateway gives up after about 5 seconds.\n\nThe packaging requests need a service-to-service client with the `read` scope, sent as Basic credentials. CDP dev has no client for developers yet, so expect 401 from them until one is set up.",
       "event": [
         {
           "listen": "prerequest",
