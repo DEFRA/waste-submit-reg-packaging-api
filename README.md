@@ -3,8 +3,12 @@
 A .NET 10 API that serves aggregated packaging data from approved submissions to the Obligations service. It runs on
 CDP in the protected zone, so it is reachable from other CDP services but not from the internet.
 
-It currently serves **stub data**. The endpoints and response shapes are the agreed contract, so the Obligations team
-can build against them while the real data source is wired in. The service is connected to its own Postgres database.
+It calls [epr-common-data-api](https://github.com/DEFRA/epr-common-data-api)'s `v1/pom/approved-submissions/{periodYear}`
+endpoint and groups its flat rows into this service's nested shape. The underlying stored procedure keeps only one
+obligation row per producer for now (no tie-break between multiple real joiner/leaver events yet - see SUB-410's
+`sp_GetApprovedSubmissionsMycWithObligations_ProducerIdFix`), so a producer currently shows at most one event, not its
+full join/leave history; that will start returning more once the fix candidate is validated and cut over. The service
+is connected to its own Postgres database.
 
 * [Endpoints](#endpoints)
 * [Running locally](#running-locally)
@@ -30,10 +34,13 @@ can build against them while the real data source is wired in. The service is co
 | `GET /describe` | The service name. Requires authentication, see [Service-to-service authentication](#service-to-service-authentication) |
 | `GET /swagger`, `GET /openapi/v1.json` | The API documentation, where Swagger is turned on |
 
-Both packaging endpoints return their results under `items`, which is empty when there is nothing for the year. The
-submitter endpoint returns 404 only when the submitter organisation does not exist. For a compliance scheme,
-`submitterOrganisationId` is the scheme's ID, not the organisation ID of the company that runs it. Each producer carries its
-packaging in whole kilograms per material, and its `events`: every time it joined or left during the year, oldest first.
+Both packaging endpoints return their results under `items`, which is empty when there is nothing for the year or for
+that submitter. The submitter endpoint's `404` response is declared but not currently used: epr-common-data-api only
+knows about organisations that submitted, so there is no way yet to tell "this organisation doesn't exist" apart from
+"this organisation exists but has nothing approved this year" - both return `200` with empty `items`. Flagged as an
+open gap in the SUB-410 plan. For a compliance scheme, `submitterOrganisationId` is the scheme's ID, not the
+organisation ID of the company that runs it. Each producer carries its packaging in whole kilograms per material, and
+its `events`: every time it joined or left during the year, oldest first.
 
 ```json
 "events": [
@@ -46,7 +53,9 @@ packaging in whole kilograms per material, and its `events`: every time it joine
 [GOV.UK registration file guidance](https://www.gov.uk/guidance/register-for-epr-for-packaging-create-your-registration-file),
 and `action` (`Joined` or `Left`) is worked out from it. `events` is `[]` when the producer did neither.
 
-The stub data is for year `2024`, with two submitters:
+`StubApprovedSubmissionsProvider` still carries this example data for year `2024`, with two submitters, and the
+existing endpoint tests still run against it (see [Testing](#testing)), but it is no longer what the running service
+serves - see [Running locally](#running-locally).
 
 | Submitter | `submitterOrganisationId` |
 |---|---|
@@ -55,7 +64,10 @@ The stub data is for year `2024`, with two submitters:
 
 ## Running locally
 
-You need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and Docker.
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download), Docker, and
+[epr-common-data-api](https://github.com/DEFRA/epr-common-data-api) running locally (its own README covers that) -
+`appsettings.Development.json` points `CommonDataApi:BaseUrl` at `https://localhost:5001`. Without it running, the
+packaging endpoints return a `500`.
 
 1. Start Postgres:
 
@@ -74,6 +86,7 @@ You need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and Docker.
    - http://localhost:8085/health should say `Healthy`
    - http://localhost:8085/health/db should say `Healthy` (it says `Unhealthy` if Postgres is not running)
    - http://localhost:8085/swagger shows the endpoints
+   - http://localhost:8085/packaging/2024/producer-material-totals-by-submitter returns real data from epr-common-data-api
 
 `dotnet run` uses the launch profile in `Properties/launchSettings.json`, which listens on port 8085 and loads
 `appsettings.Development.json`.
@@ -108,6 +121,7 @@ Environment variables use `__` for nesting, so `Postgres__Host` sets `Postgres:H
 | `Postgres__Password` | Local databases only. Ignored when IAM is on | Not set |
 | `Postgres__SslMode` | TLS mode | `VerifyFull` |
 | `Swagger__Enabled` | Serve Swagger and the OpenAPI document | `true` in dev and test only |
+| `CommonDataApi__BaseUrl` | epr-common-data-api's base address. **Required**: the service will not start without it | Set per environment in cdp-app-config, once the cross-platform networking (Squid ACL, auth) is in place |
 
 A change in cdp-app-config does nothing until the service is redeployed from the CDP Portal.
 
@@ -302,8 +316,6 @@ These came with the CDP template. They are left in place because we may need the
   `compose/start-localstack.sh` is the older Localstack version of the same script.
 - **Redis.** The `redis` container in `compose.yml` is only used by the commented-out frontend example in the same file.
   CDP only gives Redis to frontend services, so this API cannot use it in CDP.
-- **HTTP client helpers.** `Utils/Http/` sets up outbound HTTP calls through CDP's proxy, ready for when the service
-  calls something outside CDP.
 - **Audit logging.** `Utils/Auditing/` is wired into the logging setup: anything logged with `logger.Audit(...)` goes to a
   separate audit stream. Nothing calls it yet.
 
