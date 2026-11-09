@@ -6,8 +6,8 @@ namespace WasteSubmitRegPackagingApi.Authentication;
 
 /// <summary>
 /// Service-to-service authentication and authorisation, following the Manage Obligations service
-/// (DEFRA/waste-obligations). Only the API key (Basic) scheme is registered: no OAuth client calls
-/// this API yet.
+/// (DEFRA/waste-obligations). Only the API key (Basic) scheme and the <c>read</c> scope exist: add
+/// more (for example an OAuth client type, or write/admin scopes) when an endpoint needs them.
 ///
 /// There is deliberately no fallback policy. Endpoints opt in with <c>RequireAuthorization</c>, and
 /// the CDP health checks must stay anonymous.
@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddOptions<AclOptions>().BindConfiguration("Acl").ValidateOnStart();
         services.AddSingleton<IValidateOptions<AclOptions>, AclOptionsValidator>();
+        services.AddSingleton<IValidateOptions<AclOptions>, AclClientTypeValidator>();
 
         services
             .AddAuthentication(BasicAuthenticationHandler.SchemeName)
@@ -28,9 +29,7 @@ public static class ServiceCollectionExtensions
 
         services
             .AddAuthorizationBuilder()
-            .AddPolicy(PolicyNames.Admin, builder => RequireScope(builder, Scopes.Admin))
-            .AddPolicy(PolicyNames.Read, builder => RequireScope(builder, Scopes.Read))
-            .AddPolicy(PolicyNames.Write, builder => RequireScope(builder, Scopes.Write));
+            .AddPolicy(PolicyNames.Read, builder => RequireScope(builder, Scopes.Read));
 
         return services;
     }

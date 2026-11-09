@@ -101,18 +101,4 @@ public class DescribeEndpointsTest
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    [Fact]
-    public async Task Authenticated_client_without_the_read_scope_is_forbidden()
-    {
-        var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new AclTestFactory();
-        using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization =
-            AclTestFactory.Basic(AclTestFactory.NoReadScopeClientId, AclTestFactory.Secret);
-
-        var response = await client.GetAsync("/describe", cancellationToken);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
 }

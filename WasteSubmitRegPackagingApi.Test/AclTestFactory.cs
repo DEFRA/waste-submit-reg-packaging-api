@@ -16,18 +16,11 @@ public sealed class AclTestFactory(IReadOnlyDictionary<string, string?>? extraSe
     public const string ClientId = "TestClient";
     public const string Secret = "test-secret";
 
-    /// <summary>Authenticates, but has write rather than the read scope.</summary>
-    public const string NoReadScopeClientId = "NoReadScopeClient";
-
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting($"Acl:Clients:{ClientId}:Type", "ApiKey");
         builder.UseSetting($"Acl:Clients:{ClientId}:Secret", Secret);
         builder.UseSetting($"Acl:Clients:{ClientId}:Scopes:0", "read");
-
-        builder.UseSetting($"Acl:Clients:{NoReadScopeClientId}:Type", "ApiKey");
-        builder.UseSetting($"Acl:Clients:{NoReadScopeClientId}:Secret", Secret);
-        builder.UseSetting($"Acl:Clients:{NoReadScopeClientId}:Scopes:0", "write");
 
         foreach (var (key, value) in extraSettings ?? new Dictionary<string, string?>())
             builder.UseSetting(key, value);

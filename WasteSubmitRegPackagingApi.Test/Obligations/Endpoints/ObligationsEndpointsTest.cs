@@ -205,22 +205,6 @@ public class ObligationsEndpointsTest
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Theory]
-    [InlineData("/packaging/2024/producer-material-totals-by-submitter")]
-    [InlineData($"/packaging/2024/submitter-organisation/{DirectRegistrantId}/producer-material-totals")]
-    public async Task Client_without_the_read_scope_is_forbidden(string url)
-    {
-        var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new AclTestFactory();
-        using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization =
-            AclTestFactory.Basic(AclTestFactory.NoReadScopeClientId, AclTestFactory.Secret);
-
-        var response = await client.GetAsync(url, cancellationToken);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
     private static HttpClient CreateAuthenticatedClient(WebApplicationFactory<Program> factory)
     {
         var client = factory.CreateClient();

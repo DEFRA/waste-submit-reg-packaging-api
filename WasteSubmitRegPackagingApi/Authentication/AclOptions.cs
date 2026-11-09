@@ -19,7 +19,8 @@ public class AclOptions
     {
         /// <summary>
         /// Nullable so a client whose Type is missing from config fails validation at startup,
-        /// rather than silently defaulting to <see cref="ClientType.OAuth"/> and failing every call.
+        /// rather than silently defaulting to the enum's first value. Any other value (for example
+        /// <c>OAuth</c>) also stops the app starting (see <see cref="AclClientTypeValidator"/>).
         /// Every client is validated by <see cref="AclOptionsValidator"/>.
         /// </summary>
         public required ClientType? Type { get; init; }
@@ -31,7 +32,6 @@ public class AclOptions
 
     public enum ClientType
     {
-        OAuth,
         ApiKey,
     }
 }

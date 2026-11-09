@@ -6,7 +6,9 @@ namespace WasteSubmitRegPackagingApi.Authentication;
 /// Validates each client in the access control list. Data annotations only check the top-level
 /// <see cref="AclOptions"/> and never look inside the <c>Clients</c> dictionary, so without this a
 /// half-configured client (no Type, an unsupported Type, an ApiKey client with no Secret, or a
-/// mistyped scope) would start fine and then fail every call with a 401 or 403.
+/// mistyped scope) would start fine and then fail every call with a 401 or 403. A Type the binder
+/// cannot convert drops the client before it gets here; <see cref="AclClientTypeValidator"/> catches
+/// that.
 /// </summary>
 public sealed class AclOptionsValidator : IValidateOptions<AclOptions>
 {
@@ -18,9 +20,8 @@ public sealed class AclOptionsValidator : IValidateOptions<AclOptions>
         {
             if (client.Type is null)
                 failures.Add($"Acl:Clients:{clientId}:Type is required.");
-            else if (client.Type != AclOptions.ClientType.ApiKey)
-                failures.Add(
-                    $"Acl:Clients:{clientId}:Type '{client.Type}' is not supported. This service only accepts ApiKey clients.");
+            else if (!Enum.IsDefined(client.Type.Value))
+                failures.Add(UnsupportedType(clientId, client.Type.Value.ToString()));
 
             if (client.Type == AclOptions.ClientType.ApiKey && string.IsNullOrWhiteSpace(client.Secret))
                 failures.Add($"Acl:Clients:{clientId}:Secret is required for an ApiKey client.");
@@ -35,4 +36,7 @@ public sealed class AclOptionsValidator : IValidateOptions<AclOptions>
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
+
+    internal static string UnsupportedType(string clientId, string? type) =>
+        $"Acl:Clients:{clientId}:Type '{type}' is not supported. This service only accepts ApiKey clients.";
 }

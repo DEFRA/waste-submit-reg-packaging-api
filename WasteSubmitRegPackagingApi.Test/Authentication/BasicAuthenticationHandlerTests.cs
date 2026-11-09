@@ -100,9 +100,9 @@ public class BasicAuthenticationHandlerTests
     }
 
     [Fact]
-    public async Task WhenMatchingClientId_AndInvalidType_ShouldFail()
+    public async Task WhenMatchingClientId_AndNoType_ShouldFail()
     {
-        AddClient("client", AclOptions.ClientType.OAuth, "secret");
+        AddClient("client", null, "secret");
         await Subject.InitializeAsync(Scheme(), ContextWithBasic("client:secret"));
 
         await AuthenticateAndAssertFailure();
@@ -186,7 +186,7 @@ public class BasicAuthenticationHandlerTests
         Assert.Contains(result.Principal.Claims, x => x is { Type: Claims.Scope, Value: "scope2" });
     }
 
-    private void AddClient(string clientId, AclOptions.ClientType type, string secret, params string[] scopes) =>
+    private void AddClient(string clientId, AclOptions.ClientType? type, string secret, params string[] scopes) =>
         AclOptions.Clients.Add(clientId, new AclOptions.Client { Type = type, Secret = secret, Scopes = scopes });
 
     private static DefaultHttpContext ContextWithAuthorization(string authorization) =>
