@@ -3,20 +3,32 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using WasteSubmitRegPackagingApi.Obligations.Services;
 
 namespace WasteSubmitRegPackagingApi.Test.Obligations.Endpoints;
 
+/// <summary>
+/// Exercises the endpoints against <see cref="StubApprovedSubmissionsProvider"/>'s known fixture data - the
+/// default DI registration is <see cref="CommonDataApiApprovedSubmissionsProvider"/>, which calls out over
+/// HTTP, so every factory here swaps it back out.
+/// </summary>
 public class ObligationsEndpointsTest
 {
     private const string DirectRegistrantId = "11111111-1111-4111-8111-111111111111";
     private const string ComplianceSchemeId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     private const string NoSubmissionsId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
+    private static WebApplicationFactory<Program> CreateFactory() =>
+        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services =>
+                services.AddSingleton<IApprovedSubmissionsProvider, StubApprovedSubmissionsProvider>()));
+
     [Fact]
     public async Task Filtered_endpoint_returns_a_direct_registrant_as_a_single_item()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = CreateFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
@@ -44,7 +56,7 @@ public class ObligationsEndpointsTest
     public async Task Filtered_endpoint_returns_compliance_scheme_members_with_their_events()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = CreateFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
@@ -70,7 +82,7 @@ public class ObligationsEndpointsTest
     public async Task Filtered_endpoint_returns_every_event_for_a_member_that_joins_leaves_and_rejoins_oldest_first()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = CreateFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
@@ -89,7 +101,7 @@ public class ObligationsEndpointsTest
     public async Task Filtered_endpoint_returns_not_found_for_an_unknown_organisation()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = CreateFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
@@ -108,7 +120,7 @@ public class ObligationsEndpointsTest
     public async Task Filtered_endpoint_returns_empty_items_for_a_known_organisation_with_no_approved_submission(string packagingYear, string submitterOrganisationId)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = CreateFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
@@ -124,7 +136,7 @@ public class ObligationsEndpointsTest
     public async Task Unfiltered_endpoint_returns_every_approved_submission_grouped_by_submitter()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = CreateFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/packaging/2024/producer-material-totals-by-submitter", cancellationToken);
@@ -155,7 +167,7 @@ public class ObligationsEndpointsTest
     public async Task Unfiltered_endpoint_returns_empty_items_for_a_year_with_no_data()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = CreateFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/packaging/2023/producer-material-totals-by-submitter", cancellationToken);
@@ -170,7 +182,7 @@ public class ObligationsEndpointsTest
     public async Task Year_must_be_a_number()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = CreateFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/packaging/latest/producer-material-totals-by-submitter", cancellationToken);
