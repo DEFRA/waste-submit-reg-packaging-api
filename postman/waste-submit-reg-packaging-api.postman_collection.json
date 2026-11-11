@@ -261,7 +261,22 @@
               },
               "response": []
             }
-          ]
+          ],
+          "auth": {
+            "type": "basic",
+            "basic": [
+              {
+                "key": "username",
+                "value": "{{s2sClientId}}",
+                "type": "string"
+              },
+              {
+                "key": "password",
+                "value": "{{s2sClientSecret}}",
+                "type": "string"
+              }
+            ]
+          }
         },
         {
           "name": "3. One submitter",
@@ -543,7 +558,22 @@
               },
               "response": []
             }
-          ]
+          ],
+          "auth": {
+            "type": "basic",
+            "basic": [
+              {
+                "key": "username",
+                "value": "{{s2sClientId}}",
+                "type": "string"
+              },
+              {
+                "key": "password",
+                "value": "{{s2sClientSecret}}",
+                "type": "string"
+              }
+            ]
+          }
         },
         {
           "name": "4. API documentation",
@@ -616,12 +646,139 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "5. Service-to-service authentication",
+          "description": "`GET /describe` requires an API key sent as HTTP Basic credentials (`clientId:secret`). Locally, `appsettings.Development.json` defines the `Developer` client; its credentials are in the `s2sClientId` and `s2sClientSecret` collection variables. The health checks never require authentication.",
+          "item": [
+            {
+              "name": "Describe with an API key",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                      "pm.test('Names the service', () => pm.expect(pm.response.json()).to.eql({ service: 'waste-submit-reg-packaging-api' }));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    {
+                      "key": "username",
+                      "value": "{{s2sClientId}}",
+                      "type": "string"
+                    },
+                    {
+                      "key": "password",
+                      "value": "{{s2sClientSecret}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/describe",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "describe"
+                  ]
+                },
+                "description": "An authenticated caller gets the service name."
+              },
+              "response": []
+            },
+            {
+              "name": "Describe without credentials (401)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/describe",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "describe"
+                  ]
+                },
+                "description": "No Authorization header, so the request is refused."
+              },
+              "response": []
+            },
+            {
+              "name": "Describe with the wrong secret (401)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    {
+                      "key": "username",
+                      "value": "{{s2sClientId}}",
+                      "type": "string"
+                    },
+                    {
+                      "key": "password",
+                      "value": "wrong-secret",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/describe",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "describe"
+                  ]
+                },
+                "description": "A known client with the wrong secret is refused."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     },
     {
       "name": "2. CDP dev",
-      "description": "The same requests against the service deployed in CDP dev.\n\n**Before you start**\n\n1. Connect the AWS OpenVPN.\n2. Get a Developer API key for **dev** from your profile in the CDP Portal: https://portal.cdp-int.defra.cloud/user-profile\n3. Paste it into the `cdpApiKey` collection variable, in the **Current value** column, so it stays on your machine and is not shared if the collection is exported.\n\nThen right-click this folder and choose **Run folder**.\n\nA protected-zone service cannot be reached directly from a laptop, so every request goes through the `ephemeral-protected` gateway with your key in the `x-api-key` header. The gateway gives up after about 5 seconds.\n\n**Known limitation:** this collection matches the code once it is deployed with the real epr-common-data-api provider. Until SUB-410's Phase 3 cross-platform networking lands and `CommonDataApi__BaseUrl` is set for this environment in cdp-app-config, the version deployed to CDP dev may still be the stub-based one, or may fail to start.",
+      "description": "The same requests against the service deployed in CDP dev.\n\n**Before you start**\n\n1. Connect the AWS OpenVPN.\n2. Get a Developer API key for **dev** from your profile in the CDP Portal: https://portal.cdp-int.defra.cloud/user-profile\n3. Paste it into the `cdpApiKey` collection variable, in the **Current value** column, so it stays on your machine and is not shared if the collection is exported.\n\nThen right-click this folder and choose **Run folder**.\n\nA protected-zone service cannot be reached directly from a laptop, so every request goes through the `ephemeral-protected` gateway with your key in the `x-api-key` header. The gateway gives up after about 5 seconds.\n\n**Known limitation:** this collection matches the code once it is deployed with the real epr-common-data-api provider. Until SUB-410's Phase 3 cross-platform networking lands and `CommonDataApi__BaseUrl` is set for this environment in cdp-app-config, the version deployed to CDP dev may still be the stub-based one, or may fail to start.\n\nThe packaging requests need a service-to-service client with the `read` scope, sent as Basic credentials. CDP dev has no client for developers yet, so expect 401 from them until one is set up.",
       "event": [
         {
           "listen": "prerequest",
@@ -1218,6 +1375,14 @@
     {
       "key": "complianceSchemeId",
       "value": "00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "key": "s2sClientId",
+      "value": "Developer"
+    },
+    {
+      "key": "s2sClientSecret",
+      "value": "developer-pwd"
     }
   ]
 }
