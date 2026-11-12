@@ -11,6 +11,7 @@ using WasteSubmitRegPackagingApi.Utils.Http;
 using WasteSubmitRegPackagingApi.Utils.Postgres;
 using System.Diagnostics.CodeAnalysis;
 using WasteSubmitRegPackagingApi.Utils.Logging;
+using WasteSubmitRegPackagingApi.Utils.OpenApi;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -143,7 +144,7 @@ static void ConfigureOpenApi(IServiceCollection services)
             "Packaging and registration data for EPR. The obligations endpoints serve aggregated packaging data from " +
             "approved submissions. The Registration, Regulator and Packaging submissions endpoints are skeleton samples.";
         return Task.CompletedTask;
-    }));
+    }).AddSwaggerAuthTransformers());
 }
 
 [ExcludeFromCodeCoverage]
@@ -178,7 +179,13 @@ static void ConfigureEndpoints(WebApplication app)
         app.MapOpenApi();
 
         // Relative, so the page still finds the document behind CDP's /{service-name} path prefix.
-        app.UseSwaggerUI(options => options.SwaggerEndpoint("../openapi/v1.json", "Waste Submit Reg Packaging API"));
+        app.UseSwaggerUI(options =>
+        {
+            options.SwaggerEndpoint("../openapi/v1.json", "Waste Submit Reg Packaging API");
+
+            // Keeps the Authorize credentials when the page reloads.
+            options.EnablePersistAuthorization();
+        });
     }
 
     app.MapObligationsEndpoints();

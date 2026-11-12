@@ -64,10 +64,22 @@ internal sealed class RequireActorFilter : IEndpointFilter
     }
 }
 
+/// <summary>
+/// Marks an endpoint that needs the actor headers, so the OpenAPI document (and Swagger UI) can list them.
+/// </summary>
+public sealed class RequiresActorMetadata
+{
+    public static readonly RequiresActorMetadata Instance = new();
+
+    private RequiresActorMetadata() { }
+}
+
 public static class ActorEndpointExtensions
 {
     /// <summary>Use on every endpoint that changes state, so each recorded event has an actor.</summary>
     public static TBuilder RequireActor<TBuilder>(this TBuilder builder)
         where TBuilder : IEndpointConventionBuilder =>
-        builder.AddEndpointFilter<TBuilder, RequireActorFilter>();
+        builder
+            .AddEndpointFilter<TBuilder, RequireActorFilter>()
+            .WithMetadata(RequiresActorMetadata.Instance);
 }
