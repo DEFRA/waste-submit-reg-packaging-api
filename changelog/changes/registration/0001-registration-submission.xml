@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SAMPLE schema for the Registration module skeleton. The real model follows the gap analysis. -->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="registration-0001-registration-submission" author="waste-submit-reg">
+        <createTable tableName="reg_registration_submission">
+            <column name="id" type="uuid"><constraints primaryKey="true" primaryKeyName="pk_reg_registration_submission"/></column>
+            <column name="organisation_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="compliance_scheme_id" type="uuid"/>
+            <column name="registration_year" type="integer"><constraints nullable="false"/></column>
+            <column name="journey" type="varchar(40)"><constraints nullable="false"/></column>
+            <column name="nation" type="varchar(20)"><constraints nullable="false"/></column>
+            <column name="application_reference_number" type="varchar(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_reg_registration_submission_application_reference_number"/>
+            </column>
+            <column name="registration_reference_number" type="varchar(50)"/>
+            <column name="status" type="varchar(40)"><constraints nullable="false"/></column>
+            <column name="created_by_user_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="submitted_for_approval_at" type="timestamptz"/>
+            <column name="latest_decision_at" type="timestamptz"/>
+            <column name="registration_date" type="timestamptz"/>
+        </createTable>
+
+        <!-- Enums are stored as text with CHECK constraints, not PG enum types, which are hard to change later. -->
+        <sql>
+            ALTER TABLE reg_registration_submission
+                ADD CONSTRAINT ck_reg_registration_submission_journey
+                    CHECK (journey IN ('DirectLargeProducer', 'DirectSmallProducer', 'CsoLargeProducer', 'CsoSmallProducer', 'CsoLegacy')),
+                ADD CONSTRAINT ck_reg_registration_submission_nation
+                    CHECK (nation IN ('England', 'Scotland', 'Wales', 'NorthernIreland')),
+                ADD CONSTRAINT ck_reg_registration_submission_status
+                    CHECK (status IN ('InProgress', 'SubmittedForApproval', 'Queried', 'Granted', 'Refused', 'Cancelled')),
+                ADD CONSTRAINT ck_reg_registration_submission_application_reference_upper
+                    CHECK (application_reference_number = upper(application_reference_number));
+
+            -- One reference number per registration, never reused (rule R12).
+            CREATE UNIQUE INDEX uq_reg_registration_submission_registration_reference_number
+                ON reg_registration_submission (registration_reference_number)
+                WHERE registration_reference_number IS NOT NULL;
+
+            CREATE INDEX ix_reg_registration_submission_organisation_year
+                ON reg_registration_submission (organisation_id, registration_year);
+        </sql>
+        <rollback>
+            <dropTable tableName="reg_registration_submission"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="registration-0002-registration-submission-event" author="waste-submit-reg">
+        <createTable tableName="reg_registration_submission_event">
+            <column name="id" type="uuid"><constraints primaryKey="true" primaryKeyName="pk_reg_registration_submission_event"/></column>
+            <column name="registration_submission_id" type="uuid">
+                <constraints nullable="false"
+                             foreignKeyName="fk_reg_registration_submission_event_submission"
+                             referencedTableName="reg_registration_submission"
+                             referencedColumnNames="id"/>
+            </column>
+            <column name="event_type" type="varchar(40)"><constraints nullable="false"/></column>
+            <column name="actor_user_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="actor_type" type="varchar(20)"><constraints nullable="false"/></column>
+            <column name="comments" type="varchar(4000)"/>
+            <column name="effective_date" type="timestamptz"/>
+            <column name="occurred_at" type="timestamptz"><constraints nullable="false"/></column>
+        </createTable>
+
+        <sql>
+            ALTER TABLE reg_registration_submission_event
+                ADD CONSTRAINT ck_reg_registration_submission_event_event_type
+                    CHECK (event_type IN ('Started', 'ApplicationSubmitted', 'Granted', 'Refused', 'Queried', 'Cancelled')),
+                ADD CONSTRAINT ck_reg_registration_submission_event_actor_type
+                    CHECK (actor_type IN ('Producer', 'Regulator', 'System'));
+
+            CREATE INDEX ix_reg_registration_submission_event_submission_occurred
+                ON reg_registration_submission_event (registration_submission_id, occurred_at);
+        </sql>
+        <rollback>
+            <dropTable tableName="reg_registration_submission_event"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="registration-0003-outbox-message" author="waste-submit-reg">
+        <createTable tableName="reg_outbox_message">
+            <column name="id" type="uuid"><constraints primaryKey="true" primaryKeyName="pk_reg_outbox_message"/></column>
+            <column name="type" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="payload" type="jsonb"><constraints nullable="false"/></column>
+            <column name="occurred_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="processed_at" type="timestamptz"/>
+            <column name="attempts" type="integer" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="error" type="varchar(2000)"/>
+        </createTable>
+
+        <!-- The dispatcher only ever looks for unprocessed rows. -->
+        <sql>
+            CREATE INDEX ix_reg_outbox_message_unprocessed
+                ON reg_outbox_message (occurred_at)
+                WHERE processed_at IS NULL;
+        </sql>
+        <rollback>
+            <dropTable tableName="reg_outbox_message"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

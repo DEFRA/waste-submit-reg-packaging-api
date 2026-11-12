@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SAMPLE schema for the Packaging module skeleton. The packaging team owns the real one. -->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="packaging-0001-packaging-submission" author="waste-submit-reg">
+        <createTable tableName="pkg_packaging_submission">
+            <column name="id" type="uuid"><constraints primaryKey="true" primaryKeyName="pk_pkg_packaging_submission"/></column>
+            <column name="organisation_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="packaging_year" type="integer"><constraints nullable="false"/></column>
+            <!-- An ID from the Registration module. Deliberately no foreign key: modules don't share tables. -->
+            <column name="registration_submission_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="status" type="varchar(20)"><constraints nullable="false"/></column>
+            <column name="created_by_user_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz"><constraints nullable="false"/></column>
+        </createTable>
+
+        <sql>
+            ALTER TABLE pkg_packaging_submission
+                ADD CONSTRAINT ck_pkg_packaging_submission_status CHECK (status IN ('Draft', 'Submitted'));
+
+            CREATE INDEX ix_pkg_packaging_submission_organisation_year
+                ON pkg_packaging_submission (organisation_id, packaging_year);
+        </sql>
+        <rollback>
+            <dropTable tableName="pkg_packaging_submission"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="packaging-0002-outbox-message" author="waste-submit-reg">
+        <createTable tableName="pkg_outbox_message">
+            <column name="id" type="uuid"><constraints primaryKey="true" primaryKeyName="pk_pkg_outbox_message"/></column>
+            <column name="type" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="payload" type="jsonb"><constraints nullable="false"/></column>
+            <column name="occurred_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="processed_at" type="timestamptz"/>
+            <column name="attempts" type="integer" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="error" type="varchar(2000)"/>
+        </createTable>
+
+        <sql>
+            CREATE INDEX ix_pkg_outbox_message_unprocessed
+                ON pkg_outbox_message (occurred_at)
+                WHERE processed_at IS NULL;
+        </sql>
+        <rollback>
+            <dropTable tableName="pkg_outbox_message"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

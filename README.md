@@ -132,15 +132,17 @@ CDP's guide is [Relational Databases on CDP](https://portal.cdp-int.defra.cloud/
 
 ### Postgres locally
 
-`docker compose up -d postgres` starts PostgreSQL 16 on port 5432 with the same database and user names as CDP. It needs
-no password. `appsettings.Development.json` points the service at it.
+`docker compose up -d liquibase` starts PostgreSQL 16 on port 5432 with the same database and user names as CDP, then
+applies `changelog/` as the DDL user. It needs no password. `appsettings.Development.json` points the service at it, as
+the DML-only user. `compose/postgres/init.sql` creates both users, but only on an empty volume: run
+`docker compose down -v` once if you started Postgres before this change.
 
 ### Postgres in CDP
 
 - **No password.** The service signs in with a 15-minute token from its IAM role, and fetches a new one every 10 minutes.
 - **Two users.** The service uses `waste_submit_reg_packaging_api`, which can read and write data. Schema changes use
-  `waste_submit_reg_packaging_api_ddl`. No tables exist yet; CDP's way of adding them is Liquibase changelogs applied from
-  the Portal, which is not set up yet.
+  `waste_submit_reg_packaging_api_ddl`. Tables are created by the Liquibase changelog in `changelog/`, applied from the
+  Portal ("Apply Changelog"). Publishing the changelog from GitHub Actions is not set up yet.
 - **TLS.** `VerifyFull` checks the database's certificate against the RDS root certificates CDP supplies in
   `TRUSTSTORE_RDS_ROOT_CA`. If that ever fails, `Postgres__SslMode=Require` keeps the connection encrypted without
   checking the certificate.
@@ -294,6 +296,8 @@ Not set up yet:
 
 | Path | Contains |
 |---|---|
+| `WasteSubmitRegPackaging.*/` | The modules (Registration, Packaging) and the shared kernel. See [docs/architecture.md](docs/architecture.md) |
+| `changelog/` | The Liquibase changelog: one folder per module |
 | `WasteSubmitRegPackagingApi/Obligations/` | The packaging endpoints, response models, the mapping from registration file codes to joiner and leaver events, and the stub data |
 | `WasteSubmitRegPackagingApi/Config/` | Settings classes, validated at startup |
 | `WasteSubmitRegPackagingApi/Utils/Postgres/` | The Postgres connection and its health check |
@@ -307,9 +311,6 @@ Not set up yet:
 
 These came with the CDP template. They are left in place because we may need them, but nothing in the service uses them.
 
-- **MongoDB.** The connection setup (`Config/MongoConfig.cs`, `Utils/Mongo/`) and the `mongodb` container in
-  `compose.yml`. In CDP a MongoDB is already set up for the service, and its connection details are set when it is
-  deployed.
 - **floci and Localstack.** These emulate AWS services such as S3 and SQS on port 4566, so code that uses them can run
   locally without a real AWS account. The `floci` container in `compose.yml` runs
   `compose/floci/start.d/10-setup-resources.sh` on start-up, but every line that would create a bucket or queue is

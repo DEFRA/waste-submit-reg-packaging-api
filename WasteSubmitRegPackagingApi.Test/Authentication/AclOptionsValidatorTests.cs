@@ -46,14 +46,14 @@ public class AclOptionsValidatorTests
     [Theory]
     [InlineData("Read")]
     [InlineData("reader")]
-    [InlineData("write")]
+    [InlineData("Write")]
     [InlineData("admin")]
     public void A_client_with_an_unknown_scope_is_invalid(string scope)
     {
         var result = Validate(new AclOptions.Client { Type = AclOptions.ClientType.ApiKey, Secret = "s", Scopes = ["read", scope] });
 
         Assert.True(result.Failed);
-        Assert.Contains($"Acl:Clients:Client:Scopes '{scope}' is not a known scope (read).", result.Failures!);
+        Assert.Contains($"Acl:Clients:Client:Scopes '{scope}' is not a known scope (read, write).", result.Failures!);
     }
 
     [Fact]

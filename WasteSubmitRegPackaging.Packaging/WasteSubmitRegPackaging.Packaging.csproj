@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Packaging module (sample), for the packaging workflow that is being written from scratch.
+    It has the same layout as Registration: Domain / Application / Infrastructure / Endpoints.
+
+    It references Registration.Contracts only, never the Registration module itself.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WasteSubmitRegPackaging.SharedKernel\WasteSubmitRegPackaging.SharedKernel.csproj" />
+    <ProjectReference Include="..\WasteSubmitRegPackaging.SharedKernel.Infrastructure\WasteSubmitRegPackaging.SharedKernel.Infrastructure.csproj" />
+    <ProjectReference Include="..\WasteSubmitRegPackaging.Registration.Contracts\WasteSubmitRegPackaging.Registration.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="WasteSubmitRegPackagingApi.Test" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+
+</Project>

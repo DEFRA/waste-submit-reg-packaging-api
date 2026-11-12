@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The master changelog CDP applies from the Portal ("Apply Changelog"). CDP requires this path and
+  name (./changelog/db.changelog.xml) and XML format.
+
+  Each module owns a folder and a table prefix:
+    changes/registration/  reg_*
+    changes/packaging/     pkg_*
+
+  Rules:
+  - Include files explicitly, so the order is fixed and reviewable.
+  - Never edit a changeset that has been applied anywhere, because Liquibase checksums it. Add a new one.
+  - Changeset ids are <module>-<NNNN>-<what>, so two teams can't clash.
+  - Column names must match EF Core's snake_case naming of the C# properties.
+-->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <include file="changes/registration/0001-registration-submission.xml" relativeToChangelogFile="true"/>
+    <include file="changes/packaging/0001-packaging-submission.xml" relativeToChangelogFile="true"/>
+
+</databaseChangeLog>

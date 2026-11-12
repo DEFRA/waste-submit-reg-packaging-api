@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    What the Registration module offers other modules: interfaces and plain DTOs only. Packaging
+    references this project, never WasteSubmitRegPackaging.Registration itself, so the compiler stops it
+    reaching into registration internals. Change it carefully, because it is a contract.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

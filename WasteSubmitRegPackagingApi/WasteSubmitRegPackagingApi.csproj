@@ -20,8 +20,6 @@
     <PackageReference Include="Elastic.Serilog.Enrichers.Web" Version="9.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.HeaderPropagation" Version="10.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
-    <PackageReference Include="MongoDB.Driver" Version="3.8.1" />
-    <PackageReference Include="MongoDB.Driver.Authentication.AWS" Version="3.8.1" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Enrichers.ClientInfo" Version="2.9.0" />
@@ -32,5 +30,11 @@
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.0" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <ProjectReference Include="..\WasteSubmitRegPackaging.SharedKernel.Infrastructure\WasteSubmitRegPackaging.SharedKernel.Infrastructure.csproj" />
+    <ProjectReference Include="..\WasteSubmitRegPackaging.Registration\WasteSubmitRegPackaging.Registration.csproj" />
+    <ProjectReference Include="..\WasteSubmitRegPackaging.Packaging\WasteSubmitRegPackaging.Packaging.csproj" />
+  </ItemGroup>
 
 </Project>

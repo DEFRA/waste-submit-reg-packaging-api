@@ -1,0 +1,158 @@
+# Local requests for the skeleton's sample endpoints.
+#
+# Run them with Visual Studio 2022 (17.12+), Rider, or VS Code with the REST Client extension.
+# Before you start:
+#   1. docker compose up -d postgres && docker compose up liquibase   (database and schema)
+#   2. Run WasteSubmitRegPackagingApi in the debugger (http://localhost:8085)
+#
+# Run the requests from top to bottom. Each one uses the id returned by "start".
+# Authorization is the local-only Developer client from appsettings.Development.json
+# (Developer:developer-pwd, base64 encoded). It never exists outside Development.
+#
+# In Rider, if the chained ids aren't picked up, paste the registrationSubmissionId into @id.
+
+@base = http://localhost:8085
+@auth = Basic RGV2ZWxvcGVyOmRldmVsb3Blci1wd2Q=
+@org = 11111111-1111-1111-1111-111111111111
+@producer = 22222222-2222-2222-2222-222222222222
+@regulator = 33333333-3333-3333-3333-333333333333
+@id = {{start.response.body.$.registrationSubmissionId}}
+
+### Health (anonymous)
+GET {{base}}/health
+
+### Database health (anonymous)
+GET {{base}}/health/db
+
+#######################################################################
+# Registration: the happy path
+#######################################################################
+
+### 1. Producer starts a registration → 201
+# The reference number must be unique, so it is random on each run.
+# @name start
+POST {{base}}/registrations
+Authorization: {{auth}}
+Content-Type: application/json
+X-Actor-User-Id: {{producer}}
+X-Actor-Type: Producer
+X-Actor-Organisation-Id: {{org}}
+
+{
+  "organisationId": "{{org}}",
+  "registrationYear": 2026,
+  "journey": "DirectLargeProducer",
+  "nation": "England",
+  "applicationReferenceNumber": "PEPR{{$randomInt 10000000 99999999}}"
+}
+
+### 2. Producer's view → status InProgress
+GET {{base}}/registrations/{{id}}
+Authorization: {{auth}}
+
+### 3. Producer submits the application → 204
+POST {{base}}/registrations/{{id}}/application-submission
+Authorization: {{auth}}
+Content-Type: application/json
+X-Actor-User-Id: {{producer}}
+X-Actor-Type: Producer
+X-Actor-Organisation-Id: {{org}}
+
+{ "comments": "Ready for review" }
+
+### 4. Regulator's view → status SubmittedForApproval, availableRegulatorDecisions Grant, Refuse, Query
+GET {{base}}/regulator/registrations/{{id}}
+Authorization: {{auth}}
+
+### 5. Regulator grants → 200, status Granted, with a registration reference number
+POST {{base}}/regulator/registrations/{{id}}/decisions
+Authorization: {{auth}}
+Content-Type: application/json
+X-Actor-User-Id: {{regulator}}
+X-Actor-Type: Regulator
+
+{ "decision": "Grant" }
+
+### 6. Grant again → 409 registration.decision_not_allowed (Granted only allows Cancel)
+POST {{base}}/regulator/registrations/{{id}}/decisions
+Authorization: {{auth}}
+Content-Type: application/json
+X-Actor-User-Id: {{regulator}}
+X-Actor-Type: Regulator
+
+{ "decision": "Grant" }
+
+#######################################################################
+# Packaging: calls Registration through its contract
+#######################################################################
+
+### 7. Start a packaging submission for the registered organisation → 201
+# @name packaging
+POST {{base}}/packaging-submissions
+Authorization: {{auth}}
+Content-Type: application/json
+X-Actor-User-Id: {{producer}}
+X-Actor-Type: Producer
+X-Actor-Organisation-Id: {{org}}
+
+{ "organisationId": "{{org}}", "packagingYear": 2026 }
+
+### 8. Read it back
+GET {{base}}/packaging-submissions/{{packaging.response.body.$.packagingSubmissionId}}
+Authorization: {{auth}}
+
+#######################################################################
+# Errors: one of each kind
+#######################################################################
+
+### 401: no credentials
+GET {{base}}/regulator/registrations/{{id}}
+
+### 400 actor.missing: no X-Actor-* headers
+POST {{base}}/regulator/registrations/{{id}}/decisions
+Authorization: {{auth}}
+Content-Type: application/json
+
+{ "decision": "Grant" }
+
+### 400 ValidationProblem: decision missing, comments too long
+POST {{base}}/regulator/registrations/{{id}}/decisions
+Authorization: {{auth}}
+Content-Type: application/json
+X-Actor-User-Id: {{regulator}}
+X-Actor-Type: Regulator
+
+{ "comments": "{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}" }
+
+### 400 registration.comments_required: Query without comments (a sample rule, see R5)
+POST {{base}}/regulator/registrations/{{id}}/decisions
+Authorization: {{auth}}
+Content-Type: application/json
+X-Actor-User-Id: {{regulator}}
+X-Actor-Type: Regulator
+
+{ "decision": "Query" }
+
+### 403 registration.regulators_only: a producer tries to decide
+POST {{base}}/regulator/registrations/{{id}}/decisions
+Authorization: {{auth}}
+Content-Type: application/json
+X-Actor-User-Id: {{producer}}
+X-Actor-Type: Producer
+X-Actor-Organisation-Id: {{org}}
+
+{ "decision": "Grant" }
+
+### 404 registration.not_found
+GET {{base}}/regulator/registrations/00000000-0000-0000-0000-000000000000
+Authorization: {{auth}}
+
+### 400 packaging.not_registered: an organisation with no granted registration
+POST {{base}}/packaging-submissions
+Authorization: {{auth}}
+Content-Type: application/json
+X-Actor-User-Id: {{producer}}
+X-Actor-Type: Producer
+X-Actor-Organisation-Id: 44444444-4444-4444-4444-444444444444
+
+{ "organisationId": "44444444-4444-4444-4444-444444444444", "packagingYear": 2026 }
