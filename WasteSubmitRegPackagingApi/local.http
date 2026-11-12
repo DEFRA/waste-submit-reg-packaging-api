@@ -42,7 +42,7 @@ X-Actor-Organisation-Id: {{org}}
   "organisationId": "{{org}}",
   "registrationYear": 2026,
   "journey": "DirectLargeProducer",
-  "nation": "England",
+  "nation": "GB-ENG",
   "applicationReferenceNumber": "PEPR{{$randomInt 10000000 99999999}}"
 }
 

@@ -43,7 +43,9 @@ services:
       timeout: 5s
       retries: 15
 
-  # Applies ./changelog as the DDL user, as CDP's "Apply Changelog" does, then exits.
+  # Applies ./changelog as the DDL user, as CDP's "Apply Changelog" does, then exits. Run it again after
+  # adding a changeset: `docker compose up liquibase`. The Postgres driver is downloaded on the first run
+  # only, because a re-run reuses the container and lpm fails if the driver is already installed.
   liquibase:
     image: liquibase/liquibase:5.0.1
     networks:
@@ -56,7 +58,7 @@ services:
     entrypoint: ['/bin/sh', '-c']
     command:
       - >-
-        liquibase lpm add postgresql --global &&
+        { ls /liquibase/lib/postgresql-*.jar > /dev/null 2>&1 || liquibase lpm add postgresql --global; } &&
         liquibase
         --search-path=/liquibase/changelog
         --changelog-file=db.changelog.xml

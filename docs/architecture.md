@@ -105,7 +105,10 @@ Exceptions are kept for bugs and infrastructure faults, and become a 500.
   Postgres and round-trips an aggregate, which proves the mapping and changelog agree.
 - **IDs** are strongly typed (`RegistrationSubmissionId`) and created in code with `Guid.CreateVersion7()`.
 - **Time** is `DateTimeOffset` UTC from an injected `TimeProvider`, so tests use a fixed clock.
-- **Enums** are stored as text with CHECK constraints, not PG enum types.
+- **Enums** are stored as text with CHECK constraints, not PG enum types. The exception is a value that has
+  an id in a shared reference table, which is stored as that id: `Nation` is stored as `nation_id` (1 GB-ENG,
+  2 GB-SCT, 3 GB-WLS, 4 GB-NIR) so data carried over from Azure maps straight across. The API uses the codes
+  (`GB-ENG`) and also accepts the ids.
 - **Concurrency.** Postgres `xmin` is used as a row version, so two regulators deciding at once gives one success and
   one 409 (`registration.concurrent_change`).
 - **Unique clashes** are recognised from the Postgres error code (`23505`), never by matching message text.

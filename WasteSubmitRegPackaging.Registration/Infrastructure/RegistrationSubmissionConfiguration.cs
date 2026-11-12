@@ -22,7 +22,8 @@ internal sealed class RegistrationSubmissionConfiguration : IEntityTypeConfigura
         builder.Property(s => s.ApplicationReferenceNumber).HasMaxLength(50);
         builder.Property(s => s.RegistrationReferenceNumber).HasMaxLength(50);
         builder.Property(s => s.Journey).HasConversion<string>().HasMaxLength(40);
-        builder.Property(s => s.Nation).HasConversion<string>().HasMaxLength(20);
+        // Stored as the Nations reference table id (1 to 4), not as text. See Nation.
+        builder.Property(s => s.Nation).HasColumnName("nation_id").HasConversion<short>();
         builder.Property(s => s.Status).HasConversion<string>().HasMaxLength(40);
 
         // Optimistic concurrency on Postgres's xmin system column. Two regulators deciding at once means

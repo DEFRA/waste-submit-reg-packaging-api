@@ -20,6 +20,7 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <include file="changes/registration/0001-registration-submission.xml" relativeToChangelogFile="true"/>
+    <include file="changes/registration/0002-nation-id.xml" relativeToChangelogFile="true"/>
     <include file="changes/packaging/0001-packaging-submission.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

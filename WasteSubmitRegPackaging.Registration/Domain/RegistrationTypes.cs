@@ -45,13 +45,18 @@ public enum RegistrationJourney
     CsoLegacy
 }
 
+/// <summary>
+/// The regulator nations. The numbers are the ids in the Nations reference table, and are what the
+/// database stores (<c>nation_id</c>), so data carried over from Azure maps straight across. The API uses
+/// the ISO 3166-2 codes (GB-ENG and so on), and also accepts the ids.
+/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<Nation>))]
 public enum Nation
 {
-    England,
-    Scotland,
-    Wales,
-    NorthernIreland
+    [JsonStringEnumMemberName("GB-ENG")] England = 1,
+    [JsonStringEnumMemberName("GB-SCT")] Scotland = 2,
+    [JsonStringEnumMemberName("GB-WLS")] Wales = 3,
+    [JsonStringEnumMemberName("GB-NIR")] NorthernIreland = 4
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<RegistrationEventType>))]

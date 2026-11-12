@@ -89,7 +89,7 @@ public class RegistrationEndpointsTest
             organisationId = TestActors.ProducerOrganisationId,
             registrationYear = 2026,
             journey = "DirectLargeProducer",
-            nation = "England",
+            nation = "GB-ENG",
             applicationReferenceNumber = "PEPR00099999"
         }, Ct);
 
