@@ -27,11 +27,11 @@ is connected to its own Postgres database.
 
 | Endpoint | Returns |
 |---|---|
-| `GET /packaging/{packagingYear}/producer-material-totals-by-submitter` | Every approved submission for the year, grouped by submitter, with each producer's material totals. Not paged. Requires the `read` scope |
-| `GET /packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals` | The producers one submitter reported for: itself for a direct registrant, its members for a compliance scheme. Requires the `read` scope |
+| `GET /packaging/{packagingYear}/producer-material-totals-by-submitter` | Every approved submission for the year, grouped by submitter, with each producer's material totals. Not paged. |
+| `GET /packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals` | The producers one submitter reported for: itself for a direct registrant, its members for a compliance scheme. |
 | `GET /health` | Whether the service is running |
 | `GET /health/db` | Whether the service can reach Postgres |
-| `GET /describe` | The service name. Requires authentication, see [Service-to-service authentication](#service-to-service-authentication) |
+| `GET /describe` | The service name |
 | `GET /swagger`, `GET /openapi/v1.json`, `GET /openapi/unpublished.json` | The API documentation, where Swagger is turned on. See [The OpenAPI contract for frontends](#the-openapi-contract-for-frontends) |
 
 Both packaging endpoints return their results under `items`, which is empty when there is nothing for the year or for
@@ -180,52 +180,12 @@ some environments with `context="dev"` or `context="!prod"`. Details are in CDP'
 `/health` leaves the database out on purpose. CDP restarts the container whenever `/health` fails, and a database blip
 should not do that.
 
-Neither health check ever requires authentication, whatever `Authorization` header is sent.
+## Authentication
 
-## Service-to-service authentication
-
-Callers authenticate with an API key, following the pattern used by the Manage Obligations service
-([DEFRA/waste-obligations](https://github.com/DEFRA/waste-obligations)). CDP lists shared-secret
-Basic auth as a supported option in its
-[service-to-service auth guide](https://github.com/DEFRA/cdp-documentation/blob/main/how-to/service-to-service-auth.md).
-
-The key is sent as HTTP Basic credentials: `Authorization: Basic base64(clientId:secret)`. Each
-client is an entry in the `Acl:Clients` access control list:
-
-| Setting | Where it lives | Example |
-|---|---|---|
-| `Acl__Clients__{clientId}__Type` | CDP app config | `ApiKey` |
-| `Acl__Clients__{clientId}__Scopes__0` | CDP app config | `read` |
-| `Acl__Clients__{clientId}__Secret` | **CDP secrets** (portal) | never in config or source |
-
-The packaging submit frontend (waste-submit-reg-packaging-fe) calls as client `WasteSubmitRegPackagingFrontend`. Its `Type` and `Scopes` are in the service's `defaults.env` in CDP app config, as they are the same in every environment.
-
-Endpoints opt in with `.RequireAuthorization(PolicyNames.Read)`, as in Manage Obligations, so a
-client's scopes decide what it can call. The `/packaging` endpoints and `/describe` require `read`, and `EndpointSecurityTest`
-fails the build if any of them loses its policy.
-Client ids are matched case-insensitively and secrets are compared in constant time. Every client is validated at
-startup: it must be an `ApiKey` client with a secret and known scopes. `read` is the only scope for now; add others, such
-as `write`, when an endpoint needs them. The outcomes are:
-
-- no credentials, or wrong credentials: `401`, with a `WWW-Authenticate: Basic` challenge
-- a known client without the scope: `403` (not reachable yet, as `read` is the only scope)
-
-There is deliberately no fallback policy.
-
-**`GET /describe`** is a no-op that returns `{ "service": "waste-submit-reg-packaging-api" }` to an authenticated
-caller. Use it to prove a caller's credentials work end to end.
-
-**The health checks never require authentication.** CDP polls them, and an auth failure would mark
-the service unhealthy. They are mapped with `.AllowAnonymous()`, and `HealthEndpointsAnonymousTest`
-fails the build if that changes or a fallback policy is added.
-
-Locally, `appsettings.Development.json` (for `dotnet run`) and `compose.yml` (for Docker Compose) define a `Developer` client:
-
-```bash
-curl -i http://localhost:8085/describe                                # 401
-curl -i -u Developer:developer-pwd http://localhost:8085/describe     # 200
-curl -i http://localhost:8085/health                                  # 200, no auth needed
-```
+Calls aren't authenticated service-to-service: CDP doesn't require it, and nothing needs it yet. Endpoints that act
+for a user take the `X-User-*` headers (a placeholder, see `HeaderCurrentUser.cs`). If service-to-service auth is
+needed later, Manage Obligations ([DEFRA/waste-obligations](https://github.com/DEFRA/waste-obligations)) has an API key
+ACL to copy.
 
 ## Swagger
 
@@ -247,8 +207,8 @@ The page has two OpenAPI documents (pick one at the top right):
 
 ### Publishing an endpoint
 
-Every endpoint works, and can be tried from Swagger, whether it's published or not. Publishing only decides whether it's
-in the v1 document, the contract that's merged and that frontends build against.
+Publishing decides whether an endpoint is in the v1 document, the contract that's merged and that frontends build
+against, and whether it can be called once deployed.
 
 - **To keep an endpoint unpublished**, add `.Unpublished()` to it or to its route group:
 
@@ -270,8 +230,10 @@ can build on it and production traffic can reach it. So before the pull request 
 - **The contract:** it must be agreed with the teams that will call it, because changing it later breaks their
   generated clients.
 
-Unpublished endpoints are left out of the contract but are still mapped. Anyone with an ACL client can call them
-wherever the service is deployed, so don't rely on `.Unpublished()` to hide an endpoint.
+Unpublished endpoints can only be called where `UnpublishedEndpoints:Enabled` is true: locally
+(`appsettings.Development.json` and `compose.yml`). Everywhere else they're a 404 and Swagger doesn't list the
+unpublished document. To try them in a deployed environment, for example dev, set `UnpublishedEndpoints__Enabled=true`
+for it in cdp-app-config.
 
 ### The OpenAPI contract for frontends
 
@@ -285,10 +247,8 @@ aren't committed. Instead:
 - **Each pull request build** lints `openapi.json` with Vacuum and attaches it as the `openapi.json` artifact.
 - **For whatever is deployed**, fetch `/openapi/v1.json` from dev or test (below).
 
-To call the API, a frontend needs its own ACL client: `Type: ApiKey` and its `Scopes` (`read`, plus `write` for
-commands) under `Acl:Clients:{clientId}` in cdp-app-config, and the secret in CDP secrets as
-`Acl__Clients__{clientId}__Secret`. It sends `Authorization: Basic base64(clientId:secret)`. `Developer` is only the
-local client. Endpoints that act for a user also take the `X-User-*` headers listed in the document.
+A frontend calls the API with no credentials. Endpoints that act for a user take the `X-User-*` headers listed in
+the document.
 
 ### Swagger in CDP
 
@@ -312,7 +272,7 @@ tool, or send it to a team that will call the API.
 
 [postman/waste-submit-reg-packaging-api.postman_collection.json](postman/waste-submit-reg-packaging-api.postman_collection.json)
 covers every endpoint: both health checks, both packaging endpoints (including the empty and 404 cases), the API
-documentation, and (locally only) `GET /describe` with and without credentials. It has two folders with tests on every
+documentation, and (locally only) `GET /describe`. It has two folders with tests on every
 request.
 
 | Folder | Calls | Before you run it |

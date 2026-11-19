@@ -7,7 +7,6 @@ using WasteSubmitRegPackaging.Registration;
 using WasteSubmitRegPackaging.SharedKernel.Domain;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
 using WasteSubmitRegPackaging.SharedKernel.Messaging;
-using WasteSubmitRegPackagingApi.Authentication;
 
 namespace WasteSubmitRegPackagingApi.Test.Modules;
 
@@ -139,12 +138,6 @@ public class ArchitectureTest
         Assert.All(handlers, handler => Assert.StartsWith($"{module}.Application.", handler.Namespace));
     }
 
-    [Fact]
-    public void Module_policy_names_match_the_policies_the_host_registers()
-    {
-        Assert.Equal(PolicyNames.Read, ModulePolicies.Read);
-        Assert.Equal(PolicyNames.Write, ModulePolicies.Write);
-    }
 
     private static Assembly Load(string name) =>
         new[] { s_registration, s_packaging, s_fees, s_submissionPeriods }.Single(assembly => assembly.GetName().Name == name);

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.TestHost;
@@ -104,38 +105,15 @@ public class SubmissionPeriodsEndpointsTest
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
-    public async Task Without_credentials_it_is_a_401()
-    {
-        await using var factory = new AclTestFactory();
-        using var client = factory.CreateClient();
-
-        var response = await client.GetAsync("/submission-periods/packaging/for-submitter-type?submitterType=DirectProducer", Ct);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task The_registration_submission_periods_need_credentials_too()
-    {
-        await using var factory = new AclTestFactory();
-        using var client = factory.CreateClient();
-
-        var response = await client.GetAsync("/submission-periods/registration", Ct);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
     private HttpClient Client()
     {
-        var factory = new AclTestFactory().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IQueryHandler<GetPackagingSubmissionPeriodsForSubmitterQuery, IReadOnlyList<PackagingSubmissionPeriodTile>>>();
             services.AddSingleton(_handler);
         }));
 
         var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = AclTestFactory.Basic(AclTestFactory.ClientId, AclTestFactory.Secret);
         return client;
     }
 }

@@ -1,4 +1,3 @@
-using WasteSubmitRegPackagingApi.Authentication;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace WasteSubmitRegPackagingApi.Describe.Endpoints;
@@ -18,8 +17,7 @@ public static class DescribeEndpoints
         app.MapGet("/describe", Describe)
             .WithName(EndpointName)
             .WithTags("Service")
-            .WithSummary("Name of this service. Requires service-to-service authentication.")
-            .RequireAuthorization(PolicyNames.Read);
+            .WithSummary("Name of this service.");
 
     private static Ok<DescribeResponse> Describe() => TypedResults.Ok(new DescribeResponse(ServiceName));
 }

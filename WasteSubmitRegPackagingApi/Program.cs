@@ -1,4 +1,3 @@
-using WasteSubmitRegPackagingApi.Authentication;
 using WasteSubmitRegPackaging.Packaging;
 using WasteSubmitRegPackaging.Fees;
 using WasteSubmitRegPackaging.SubmissionPeriods;
@@ -67,10 +66,6 @@ static void ConfigureServices(WebApplicationBuilder builder)
 
     services.AddHealthChecks()
         .AddPostgres();
-
-    // Service-to-service authentication (API key ACL), copied from Manage Obligations. Endpoints opt
-    // in; there is no fallback policy, so the CDP health checks stay anonymous.
-    services.AddAuthenticationAuthorization();
 }
 
 [ExcludeFromCodeCoverage]
@@ -160,7 +155,7 @@ static void ConfigureOpenApi(IServiceCollection services)
                 "Packaging and registration data for EPR. The obligations endpoints serve aggregated packaging data from " +
                 "approved submissions. Endpoints that aren't published yet are in the unpublished document.";
             return Task.CompletedTask;
-        }).AddSwaggerAuthTransformers();
+        }).AddSwaggerTransformers();
     });
 
     services.AddOpenApi(OpenApiDocuments.Unpublished, options =>
@@ -173,7 +168,7 @@ static void ConfigureOpenApi(IServiceCollection services)
                 "Endpoints that aren't published yet, including the SAMPLE registration, regulator and packaging " +
                 "submission endpoints. They may change, so don't generate clients from this document.";
             return Task.CompletedTask;
-        }).AddSwaggerAuthTransformers();
+        }).AddSwaggerTransformers();
     });
 
     static bool IsUnpublished(Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription description) =>
@@ -187,24 +182,23 @@ static void ConfigureMiddleware(WebApplication app)
 
     app.UseHeaderPropagation();
 
-    app.UseAuthentication();
-    app.UseAuthorization();
+    // Endpoints marked .Unpublished() are a 404 unless this is on: locally, and wherever cdp-app-config turns it on.
+    app.UseUnpublishedEndpointGate(app.Configuration.GetValue<bool>("UnpublishedEndpoints:Enabled"));
 }
 
 [ExcludeFromCodeCoverage]
 static void ConfigureEndpoints(WebApplication app)
 {
     // CDP polls /health to decide whether the container is alive, so it leaves out the database.
-    // Health checks must never require authentication; HealthEndpointsAnonymousTest guards this.
     app.MapHealthChecks("/health", new HealthCheckOptions
     {
         Predicate = check => !check.Tags.Contains(PostgresHealthChecks.Tag)
-    }).AllowAnonymous();
+    });
 
     app.MapHealthChecks("/health/db", new HealthCheckOptions
     {
         Predicate = check => check.Tags.Contains(PostgresHealthChecks.Tag)
-    }).AllowAnonymous();
+    });
 
     // Off in production. Swagger:Enabled turns it on per environment.
     if (app.Configuration.GetValue<bool>("Swagger:Enabled"))
@@ -215,7 +209,10 @@ static void ConfigureEndpoints(WebApplication app)
         app.UseSwaggerUI(options =>
         {
             options.SwaggerEndpoint($"../openapi/{OpenApiDocuments.V1}.json", "Waste Submit Reg Packaging API");
-            options.SwaggerEndpoint($"../openapi/{OpenApiDocuments.Unpublished}.json", "Unpublished");
+            if (app.Configuration.GetValue<bool>("UnpublishedEndpoints:Enabled"))
+            {
+                options.SwaggerEndpoint($"../openapi/{OpenApiDocuments.Unpublished}.json", "Unpublished");
+            }
 
             // Keeps the Authorize credentials when the page reloads.
             options.EnablePersistAuthorization();

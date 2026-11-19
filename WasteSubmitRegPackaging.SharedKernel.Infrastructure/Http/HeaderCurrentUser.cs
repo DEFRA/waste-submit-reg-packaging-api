@@ -8,9 +8,9 @@ namespace WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
 /// <summary>
 /// The headers a calling frontend sets to say which of its users it is acting for.
 ///
-/// PLACEHOLDER, to discuss: the caller is already authenticated service-to-service (the ACL), so these
-/// headers are trusted only because only allow-listed services can reach this API. Alternatives are a
-/// user token passed through from Defra ID, or a signed user token.
+/// PLACEHOLDER, to discuss: these headers are trusted only because the API is in CDP's protected zone, so only
+/// services on the CDP network can reach it. Alternatives are a user token passed through from Defra ID, or a
+/// signed user token.
 /// </summary>
 public static class UserHeaders
 {

@@ -34,31 +34,26 @@ internal static class RegistrationEndpoints
         producer.MapPost("/", StartRegistration)
             .WithName("StartRegistration")
             .WithSummary("Start a registration for an organisation and year (sample)")
-            .RequireAuthorization(ModulePolicies.Write)
             .RequireProducer();
 
         producer.MapGet("/{registrationSubmissionId:guid}", GetRegistrationSubmission)
             .WithName("GetRegistrationSubmission")
-            .WithSummary("A registration, with its status, history and the actions available (sample)")
-            .RequireAuthorization(ModulePolicies.Read);
+            .WithSummary("A registration, with its status, history and the actions available (sample)");
 
         producer.MapPost("/{registrationSubmissionId:guid}/application-submission", SubmitRegistrationApplication)
             .WithName("SubmitRegistrationApplication")
             .WithSummary("Submit the application to the regulator (sample)")
-            .RequireAuthorization(ModulePolicies.Write)
             .RequireProducer();
 
         var regulator = app.MapGroup("/regulator/registrations").AsSample("Regulator", "registration");
 
         regulator.MapGet("/{registrationSubmissionId:guid}", GetRegistrationSubmission)
             .WithName("GetRegulatorRegistrationSubmission")
-            .WithSummary("A registration, as the regulator sees it (sample)")
-            .RequireAuthorization(ModulePolicies.Read);
+            .WithSummary("A registration, as the regulator sees it (sample)");
 
         regulator.MapPost("/{registrationSubmissionId:guid}/decisions", RecordRegulatorDecision)
             .WithName("RecordRegulatorDecision")
             .WithSummary("Grant, refuse, query or cancel a registration (sample)")
-            .RequireAuthorization(ModulePolicies.Write)
             .RequireRegulator();
     }
 

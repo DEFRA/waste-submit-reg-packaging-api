@@ -41,13 +41,11 @@ internal static class PackagingSubmissionEndpoints
         group.MapPost("/", CreatePackagingSubmission)
             .WithName("CreatePackagingSubmission")
             .WithSummary("Start a packaging data submission (sample)")
-            .RequireAuthorization(ModulePolicies.Write)
             .RequireProducer();
 
         group.MapGet("/{packagingSubmissionId:guid}", GetPackagingSubmission)
             .WithName("GetPackagingSubmission")
-            .WithSummary("A packaging data submission (sample)")
-            .RequireAuthorization(ModulePolicies.Read);
+            .WithSummary("A packaging data submission (sample)");
     }
 
     private static async Task<Results<Created<CreatePackagingSubmissionResponse>, ProblemHttpResult>> CreatePackagingSubmission(

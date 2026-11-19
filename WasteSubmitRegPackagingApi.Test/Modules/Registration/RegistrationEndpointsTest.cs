@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -134,28 +135,6 @@ public class RegistrationEndpointsTest
         Assert.StartsWith("/registrations/", response.Headers.Location?.OriginalString);
     }
 
-    [Fact]
-    public async Task Commands_need_the_write_scope()
-    {
-        using var client = Client(TestUsers.Regulator, withWriteScope: false);
-
-        var response = await client.PostAsJsonAsync(
-            $"/regulator/registrations/{Guid.NewGuid()}/decisions", new { decision = "Grant" }, Ct);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Calls_without_service_credentials_are_unauthorised()
-    {
-        await using var factory = new AclTestFactory();
-        using var client = factory.CreateClient();
-
-        var response = await client.GetAsync($"/registrations/{Guid.NewGuid()}", Ct);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static object ValidStartRequest() => new
@@ -174,26 +153,21 @@ public class RegistrationEndpointsTest
         [UserHeaders.OrganisationId] = producer.OrganisationId.ToString()
     });
 
-    private HttpClient Client(RegulatorUser regulator, bool withWriteScope = true) => ClientWithHeaders(new Dictionary<string, string>
+    private HttpClient Client(RegulatorUser regulator) => ClientWithHeaders(new Dictionary<string, string>
     {
         [UserHeaders.UserId] = regulator.UserId.ToString(),
         [UserHeaders.Type] = "Regulator"
-    }, withWriteScope);
+    });
 
-    private HttpClient ClientWithHeaders(Dictionary<string, string>? userHeaders = null, bool withWriteScope = true)
+    private HttpClient ClientWithHeaders(Dictionary<string, string>? userHeaders = null)
     {
-        var settings = withWriteScope
-            ? new Dictionary<string, string?> { [$"Acl:Clients:{AclTestFactory.ClientId}:Scopes:1"] = "write" }
-            : null;
-
-        var factory = new AclTestFactory(settings).WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IRegistrationSubmissionRepository>();
             services.AddSingleton<IRegistrationSubmissionRepository>(_repository);
         }));
 
         var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = AclTestFactory.Basic(AclTestFactory.ClientId, AclTestFactory.Secret);
 
         foreach (var (name, value) in userHeaders ?? [])
             client.DefaultRequestHeaders.Add(name, value);
