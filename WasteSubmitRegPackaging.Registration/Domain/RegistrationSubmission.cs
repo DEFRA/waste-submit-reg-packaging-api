@@ -1,4 +1,4 @@
-using WasteSubmitRegPackaging.SharedKernel.Actors;
+using WasteSubmitRegPackaging.SharedKernel.Users;
 using WasteSubmitRegPackaging.SharedKernel.Domain;
 using WasteSubmitRegPackaging.SharedKernel.Results;
 
@@ -43,8 +43,6 @@ internal sealed class RegistrationSubmission : AggregateRoot<RegistrationSubmiss
 
     public string ApplicationReferenceNumber { get; private set; } = null!;
 
-    public string? RegistrationReferenceNumber { get; private set; }
-
     public RegistrationStatus Status { get; private set; }
 
     public Guid CreatedByUserId { get; private set; }
@@ -55,13 +53,10 @@ internal sealed class RegistrationSubmission : AggregateRoot<RegistrationSubmiss
 
     public DateTimeOffset? LatestDecisionAt { get; private set; }
 
-    /// <summary>The date of the first Grant (rule R3). Later decisions don't move it.</summary>
-    public DateTimeOffset? RegistrationDate { get; private set; }
-
     public IReadOnlyList<RegistrationSubmissionEvent> History => _history;
 
     public static Result<RegistrationSubmission> Start(
-        Actor producer,
+        ProducerUser startedBy,
         Guid organisationId,
         Guid? complianceSchemeId,
         int registrationYear,
@@ -83,18 +78,18 @@ internal sealed class RegistrationSubmission : AggregateRoot<RegistrationSubmiss
             Nation = nation,
             ApplicationReferenceNumber = applicationReferenceNumber.Trim().ToUpperInvariant(),
             Status = RegistrationStatus.InProgress,
-            CreatedByUserId = producer.UserId,
+            CreatedByUserId = startedBy.UserId,
             CreatedAt = now
         };
 
-        submission._history.Add(new RegistrationSubmissionEvent(RegistrationEventType.Started, producer, null, null, now));
+        submission._history.Add(RegistrationSubmissionEvent.ByProducer(RegistrationEventType.Started, startedBy, null, null, now));
         submission.Raise(new RegistrationStarted(submission.Id.Value, organisationId, registrationYear, now));
 
         return submission;
     }
 
     /// <summary>The producer submits the application to the regulator, with optional additional information.</summary>
-    public Result SubmitApplication(Actor producer, string? comments, DateTimeOffset now)
+    public Result SubmitApplication(ProducerUser submittedBy, string? comments, DateTimeOffset now)
     {
         if (Status is not (RegistrationStatus.InProgress or RegistrationStatus.Queried))
             return RegistrationErrors.SubmissionNotAllowed(Status);
@@ -102,8 +97,8 @@ internal sealed class RegistrationSubmission : AggregateRoot<RegistrationSubmiss
         Status = RegistrationStatus.SubmittedForApproval;
         SubmittedForApprovalAt = now;
 
-        _history.Add(new RegistrationSubmissionEvent(RegistrationEventType.ApplicationSubmitted, producer, comments, null, now));
-        Raise(new RegistrationApplicationSubmitted(Id.Value, producer.UserId, now));
+        _history.Add(RegistrationSubmissionEvent.ByProducer(RegistrationEventType.ApplicationSubmitted, submittedBy, comments, null, now));
+        Raise(new RegistrationApplicationSubmitted(Id.Value, submittedBy.UserId, now));
 
         return Result.Success();
     }
@@ -123,10 +118,9 @@ internal sealed class RegistrationSubmission : AggregateRoot<RegistrationSubmiss
 
     public Result RecordDecision(
         RegulatorDecision decision,
-        Actor regulator,
+        RegulatorUser decidedBy,
         string? comments,
         DateTimeOffset? cancellationEffectiveDate,
-        IRegistrationReferenceNumberGenerator referenceNumberGenerator,
         DateTimeOffset now)
     {
         if (!AvailableRegulatorDecisions().Contains(decision))
@@ -138,8 +132,6 @@ internal sealed class RegistrationSubmission : AggregateRoot<RegistrationSubmiss
         {
             case RegulatorDecision.Grant:
                 Status = RegistrationStatus.Granted;
-                RegistrationReferenceNumber ??= referenceNumberGenerator.Generate(this);
-                RegistrationDate ??= now;
                 break;
             case RegulatorDecision.Refuse:
                 Status = RegistrationStatus.Refused;
@@ -155,9 +147,9 @@ internal sealed class RegistrationSubmission : AggregateRoot<RegistrationSubmiss
 
         LatestDecisionAt = now;
 
-        _history.Add(new RegistrationSubmissionEvent(ToEventType(decision), regulator, comments, effectiveDate, now));
+        _history.Add(RegistrationSubmissionEvent.ByRegulator(ToEventType(decision), decidedBy, comments, effectiveDate, now));
         Raise(new RegistrationDecisionRecorded(
-            Id.Value, decision, Status, RegistrationReferenceNumber, regulator.UserId, comments, now));
+            Id.Value, decision, Status, decidedBy.UserId, comments, now));
 
         return Result.Success();
     }

@@ -6,7 +6,7 @@ namespace WasteSubmitRegPackaging.Registration.Infrastructure;
 
 /// <summary>
 /// The EF mapping. Column names come from the snake_case convention and must match
-/// <c>changelog/changes/registration/0001-registration-submission.xml</c>; the database test checks this.
+/// <c>changelog/changes/registration/0001-registration.xml</c>; the database test checks this.
 /// </summary>
 internal sealed class RegistrationSubmissionConfiguration : IEntityTypeConfiguration<RegistrationSubmission>
 {
@@ -20,7 +20,6 @@ internal sealed class RegistrationSubmissionConfiguration : IEntityTypeConfigura
             .ValueGeneratedNever();
 
         builder.Property(s => s.ApplicationReferenceNumber).HasMaxLength(50);
-        builder.Property(s => s.RegistrationReferenceNumber).HasMaxLength(50);
         builder.Property(s => s.Journey).HasConversion<string>().HasMaxLength(40);
         // Stored as the Nations reference table id (1 to 4), not as text. See Nation.
         builder.Property(s => s.Nation).HasColumnName("nation_id").HasConversion<short>();
@@ -39,7 +38,7 @@ internal sealed class RegistrationSubmissionConfiguration : IEntityTypeConfigura
             // The ID is set in code, so EF treats a new entry in the list as an insert.
             history.Property(e => e.Id).ValueGeneratedNever();
             history.Property(e => e.EventType).HasConversion<string>().HasMaxLength(40);
-            history.Property(e => e.ActorType).HasConversion<string>().HasMaxLength(20);
+            history.Property(e => e.UserType).HasConversion<string>().HasMaxLength(20);
             history.Property(e => e.Comments).HasMaxLength(4000);
         });
 

@@ -1,6 +1,9 @@
 using WasteSubmitRegPackagingApi.Authentication;
 using WasteSubmitRegPackaging.Packaging;
+using WasteSubmitRegPackaging.Fees;
+using WasteSubmitRegPackaging.SubmissionPeriods;
 using WasteSubmitRegPackaging.Registration;
+using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Modules;
 using WasteSubmitRegPackagingApi.Describe.Endpoints;
 using WasteSubmitRegPackagingApi.Obligations.Endpoints;
@@ -96,11 +99,16 @@ static void ConfigureHttpClients(IServiceCollection services)
 [ExcludeFromCodeCoverage]
 static void ConfigurePostgres(IServiceCollection services, IConfiguration configuration)
 {
-    services
+    var postgres = services
         .AddOptions<PostgresConfig>()
         .Bind(configuration.GetRequiredSection("Postgres"))
-        .ValidateDataAnnotations()
-        .ValidateOnStart();
+        .ValidateDataAnnotations();
+
+    // The build starts the app to write the OpenAPI documents, with no database settings. It never connects.
+    if (!OpenApiBuild.IsRunning)
+    {
+        postgres.ValidateOnStart();
+    }
 
     services.AddSingleton(serviceProvider =>
         PostgresDataSourceFactory.Create(serviceProvider.GetRequiredService<IOptions<PostgresConfig>>().Value));
@@ -128,23 +136,48 @@ static void ConfigureCommonDataApi(IServiceCollection services, IConfiguration c
 static void ConfigureModules(IServiceCollection services, IConfiguration configuration)
 {
     // Each business area is a module with its own project, tables (reg_*, pkg_*) and endpoints.
-    // The host only wires them up. See docs/architecture.md.
+    // The host only wires them up. See docs/project_architecture.md.
     services.AddSharedKernel(configuration);
     services.AddRegistrationModule();
     services.AddPackagingModule();
+    services.AddFeesModule();
+    services.AddSubmissionPeriodsModule();
 }
 
 [ExcludeFromCodeCoverage]
 static void ConfigureOpenApi(IServiceCollection services)
 {
-    services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
+    // Two documents. "v1" is the published contract: it's merged, and frontends generate clients from it. It leaves
+    // out endpoints marked .Unpublished() (samples included). "unpublished" has only those, so they can still be seen
+    // and called from Swagger. The build writes them to openapi.json and openapi_unpublished.json (see the csproj).
+    services.AddOpenApi(OpenApiDocuments.V1, options =>
     {
-        document.Info.Title = "Waste Submit Reg Packaging API";
-        document.Info.Description =
-            "Packaging and registration data for EPR. The obligations endpoints serve aggregated packaging data from " +
-            "approved submissions. The Registration, Regulator and Packaging submissions endpoints are skeleton samples.";
-        return Task.CompletedTask;
-    }).AddSwaggerAuthTransformers());
+        options.ShouldInclude = description => !IsUnpublished(description);
+        options.AddDocumentTransformer((document, _, _) =>
+        {
+            document.Info.Title = "Waste Submit Reg Packaging API";
+            document.Info.Description =
+                "Packaging and registration data for EPR. The obligations endpoints serve aggregated packaging data from " +
+                "approved submissions. Endpoints that aren't published yet are in the unpublished document.";
+            return Task.CompletedTask;
+        }).AddSwaggerAuthTransformers();
+    });
+
+    services.AddOpenApi(OpenApiDocuments.Unpublished, options =>
+    {
+        options.ShouldInclude = IsUnpublished;
+        options.AddDocumentTransformer((document, _, _) =>
+        {
+            document.Info.Title = "Waste Submit Reg Packaging API: unpublished";
+            document.Info.Description =
+                "Endpoints that aren't published yet, including the SAMPLE registration, regulator and packaging " +
+                "submission endpoints. They may change, so don't generate clients from this document.";
+            return Task.CompletedTask;
+        }).AddSwaggerAuthTransformers();
+    });
+
+    static bool IsUnpublished(Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription description) =>
+        description.ActionDescriptor.EndpointMetadata.OfType<UnpublishedEndpointMetadata>().Any();
 }
 
 [ExcludeFromCodeCoverage]
@@ -181,7 +214,8 @@ static void ConfigureEndpoints(WebApplication app)
         // Relative, so the page still finds the document behind CDP's /{service-name} path prefix.
         app.UseSwaggerUI(options =>
         {
-            options.SwaggerEndpoint("../openapi/v1.json", "Waste Submit Reg Packaging API");
+            options.SwaggerEndpoint($"../openapi/{OpenApiDocuments.V1}.json", "Waste Submit Reg Packaging API");
+            options.SwaggerEndpoint($"../openapi/{OpenApiDocuments.Unpublished}.json", "Unpublished");
 
             // Keeps the Authorize credentials when the page reloads.
             options.EnablePersistAuthorization();
@@ -194,4 +228,6 @@ static void ConfigureEndpoints(WebApplication app)
 
     app.MapRegistrationEndpoints();
     app.MapPackagingEndpoints();
+    app.MapFeesEndpoints();
+    app.MapSubmissionPeriodsEndpoints();
 }

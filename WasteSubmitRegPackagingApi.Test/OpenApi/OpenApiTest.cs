@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using VerifyXunit;
 
 namespace WasteSubmitRegPackagingApi.Test.OpenApi;
 
@@ -30,13 +31,14 @@ public class OpenApiTest
     }
 
     [Fact]
-    public async Task OpenApi_document_describes_the_api_key_and_the_actor_headers_so_swagger_can_call_the_api()
+    public async Task OpenApi_document_describes_the_api_key_and_the_user_headers_so_swagger_can_call_the_api()
     {
+        // The endpoints that need a user are samples for now, so this reads the unpublished document.
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
-        using var json = JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json", cancellationToken));
+        using var json = JsonDocument.Parse(await client.GetStringAsync(UnpublishedDocument, cancellationToken));
         var root = json.RootElement;
 
         var scheme = root.GetProperty("components").GetProperty("securitySchemes").GetProperty("basic");
@@ -46,13 +48,13 @@ public class OpenApiTest
         var decision = root.GetProperty("paths").GetProperty("/regulator/registrations/{registrationSubmissionId}/decisions").GetProperty("post");
         Assert.True(decision.GetProperty("security")[0].TryGetProperty("basic", out _));
 
-        var headers = decision.GetProperty("parameters").EnumerateArray()
-            .Where(p => p.GetProperty("in").GetString() == "header")
-            .Select(p => p.GetProperty("name").GetString())
-            .ToList();
-        Assert.Equal(["X-Actor-User-Id", "X-Actor-Type", "X-Actor-Organisation-Id"], headers);
+        Assert.Equal(["X-User-Id", "X-User-Type"], HeaderNames(decision));
 
-        // Queries need the API key but no actor.
+        // A producer also says which organisation they act for.
+        var submit = root.GetProperty("paths").GetProperty("/registrations/{registrationSubmissionId}/application-submission").GetProperty("post");
+        Assert.Equal(["X-User-Id", "X-User-Type", "X-Organisation-Id"], HeaderNames(submit));
+
+        // Queries need the API key but no user.
         var query = root.GetProperty("paths").GetProperty("/regulator/registrations/{registrationSubmissionId}").GetProperty("get");
         Assert.True(query.GetProperty("security")[0].TryGetProperty("basic", out _));
         Assert.DoesNotContain(
@@ -61,13 +63,158 @@ public class OpenApiTest
     }
 
     [Fact]
+    public async Task The_v1_document_frontends_generate_from_has_no_sample_endpoints()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        using var json = JsonDocument.Parse(await client.GetStringAsync(V1Document, cancellationToken));
+        var paths = json.RootElement.GetProperty("paths").EnumerateObject().Select(path => path.Name).ToList();
+
+        Assert.DoesNotContain(paths, IsSamplePath);
+        Assert.Contains("/submission-periods/packaging/for-submitter-type", paths);
+        Assert.Contains("/fees/packaging-resubmission", paths);
+    }
+
+    [Fact]
+    public async Task The_unpublished_document_has_the_registration_regulator_and_packaging_submission_samples()
+    {
+        // They show the structure and will be developed in due course, so callers must not build against them yet.
+        // The unpublished document can hold other unpublished endpoints too, so this looks at the sample paths only.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        using var json = JsonDocument.Parse(await client.GetStringAsync(UnpublishedDocument, cancellationToken));
+        var operations = json.RootElement.GetProperty("paths").EnumerateObject()
+            .Where(path => IsSamplePath(path.Name))
+            .SelectMany(path => path.Value.EnumerateObject())
+            .ToList();
+
+        Assert.Equal(7, operations.Count);
+        Assert.All(operations, operation =>
+        {
+            Assert.EndsWith("(sample)", operation.Value.GetProperty("summary").GetString());
+            Assert.StartsWith("SAMPLE:", operation.Value.GetProperty("description").GetString());
+            Assert.All(operation.Value.GetProperty("tags").EnumerateArray(), tag => Assert.EndsWith("(sample)", tag.GetString()));
+        });
+    }
+
+    [Fact]
+    public async Task The_manage_obligations_endpoints_are_not_marked_as_samples()
+    {
+        // These are real: Manage Obligations calls them today.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        using var json = JsonDocument.Parse(await client.GetStringAsync(V1Document, cancellationToken));
+
+        var operations = json.RootElement.GetProperty("paths").EnumerateObject()
+            .Where(path => path.Name.StartsWith("/packaging/{packagingYear}", StringComparison.Ordinal))
+            .SelectMany(path => path.Value.EnumerateObject())
+            .ToList();
+
+        Assert.Equal(2, operations.Count);
+        Assert.All(operations, operation =>
+        {
+            Assert.DoesNotContain("sample", operation.Value.GetProperty("summary").GetString(), StringComparison.OrdinalIgnoreCase);
+            Assert.All(operation.Value.GetProperty("tags").EnumerateArray(),
+                tag => Assert.DoesNotContain("sample", tag.GetString(), StringComparison.OrdinalIgnoreCase));
+        });
+    }
+
+    [Fact]
+    public async Task Each_submitter_type_keeps_its_own_values()
+    {
+        // Two C# enums are called SubmitterType. They once shared a schema, so Swagger offered Manage Obligations'
+        // DirectRegistrant to the submission periods endpoint, which then failed to bind it.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        using var json = JsonDocument.Parse(await client.GetStringAsync(V1Document, cancellationToken));
+        var root = json.RootElement;
+
+        var parameter = Assert.Single(
+            root.GetProperty("paths").GetProperty("/submission-periods/packaging/for-submitter-type").GetProperty("get")
+                .GetProperty("parameters").EnumerateArray(),
+            p => p.GetProperty("name").GetString() == "submitterType");
+
+        Assert.Equal(["DirectProducer", "ComplianceScheme"], EnumValues(root, parameter.GetProperty("schema")));
+        Assert.Equal(["DirectRegistrant", "ComplianceScheme"],
+            EnumValues(root, root.GetProperty("components").GetProperty("schemas").GetProperty("ApprovedSubmission")
+                .GetProperty("properties").GetProperty("submitterType")));
+    }
+
+    private static List<string?> EnumValues(JsonElement root, JsonElement schema)
+    {
+        var id = schema.GetProperty("$ref").GetString()!.Split('/')[^1];
+        return root.GetProperty("components").GetProperty("schemas").GetProperty(id)
+            .GetProperty("enum").EnumerateArray().Select(value => value.GetString()).ToList();
+    }
+
+    [Fact]
+    public async Task Every_secured_v1_endpoint_documents_401_and_403()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        using var json = JsonDocument.Parse(await client.GetStringAsync(V1Document, cancellationToken));
+        var operations = json.RootElement.GetProperty("paths").EnumerateObject()
+            .SelectMany(path => path.Value.EnumerateObject())
+            .ToList();
+
+        Assert.NotEmpty(operations);
+        Assert.All(operations, operation =>
+        {
+            Assert.True(operation.Value.GetProperty("responses").TryGetProperty("401", out _));
+            Assert.True(operation.Value.GetProperty("responses").TryGetProperty("403", out _));
+        });
+    }
+
+    /// <summary>
+    /// The v1 document is the contract frontends generate clients from. Any change to it shows up here, and in the
+    /// pull request as a change to the .verified.json file. Accept an intended change by replacing the .verified.json
+    /// with the .received.json that the failing run writes.
+    /// </summary>
+    [Fact]
+    public async Task The_v1_document_matches_the_approved_contract()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        var document = await client.GetStringAsync(V1Document, cancellationToken);
+
+        // The example GUIDs and dates are part of the contract, so they aren't scrubbed.
+        await Verifier.VerifyJson(document).DontScrubGuids().DontScrubDateTimes();
+    }
+
+    private const string V1Document = "/openapi/v1.json";
+    private const string UnpublishedDocument = "/openapi/unpublished.json";
+
+    private static bool IsSamplePath(string path) =>
+        path.StartsWith("/registrations", StringComparison.Ordinal)
+        || path.StartsWith("/regulator/", StringComparison.Ordinal)
+        || path.StartsWith("/packaging/submissions", StringComparison.Ordinal);
+
+    private static List<string?> HeaderNames(JsonElement operation) =>
+        operation.GetProperty("parameters").EnumerateArray()
+            .Where(p => p.GetProperty("in").GetString() == "header")
+            .Select(p => p.GetProperty("name").GetString())
+            .ToList();
+
+    [Fact]
     public async Task Request_schemas_describe_what_the_api_accepts_so_swagger_builds_a_valid_example_body()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
-        using var json = JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json", cancellationToken));
+        using var json = JsonDocument.Parse(await client.GetStringAsync(UnpublishedDocument, cancellationToken));
         var schemas = json.RootElement.GetProperty("components").GetProperty("schemas");
 
         // Enums are strings, with no null value.
@@ -84,7 +231,7 @@ public class OpenApiTest
         // Optional request fields, and nullable response fields, can still be null.
         Assert.Contains(start.GetProperty("complianceSchemeId").GetProperty("type").EnumerateArray(), t => t.GetString() == "null");
         var view = schemas.GetProperty("RegistrationSubmissionView").GetProperty("properties");
-        Assert.Contains(view.GetProperty("registrationReferenceNumber").GetProperty("type").EnumerateArray(), t => t.GetString() == "null");
+        Assert.Contains(view.GetProperty("complianceSchemeId").GetProperty("type").EnumerateArray(), t => t.GetString() == "null");
     }
 
     [Fact]
@@ -108,7 +255,8 @@ public class OpenApiTest
             .WithWebHostBuilder(builder => builder.UseSetting("Swagger:Enabled", "false"));
         using var client = factory.CreateClient();
 
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/openapi/v1.json", cancellationToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(V1Document, cancellationToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(UnpublishedDocument, cancellationToken)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/swagger/index.html", cancellationToken)).StatusCode);
     }
 }

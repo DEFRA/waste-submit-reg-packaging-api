@@ -1,0 +1,87 @@
+name: Check Liquibase Schema
+
+# Applies ./changelog to a throwaway Postgres on every pull request, the way CDP's "Apply Changelog" does:
+# as the DDL user, with the app's DML-only user alongside. CDP fixes forward (there is no rollback), so
+# changesets don't need a <rollback> and none is tested. Based on the check in CDP's guide
+# (how-to/relational-databases.md, "How do I test my schema migrations?"), with the same Postgres and
+# Liquibase versions as CDP and compose.yml.
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  LIQUIBASE_VERSION: 5.0.1
+  DATABASE: waste_submit_reg_packaging_api
+  APP_USER: waste_submit_reg_packaging_api
+  PGHOST: localhost
+  PGPORT: 5432
+  # Read by the Liquibase CLI. It connects as the DDL user, as "Apply Changelog" does in CDP.
+  LIQUIBASE_SEARCH_PATH: ./changelog
+  LIQUIBASE_COMMAND_CHANGELOG_FILE: db.changelog.xml
+  LIQUIBASE_COMMAND_URL: jdbc:postgresql://localhost:5432/waste_submit_reg_packaging_api
+  LIQUIBASE_COMMAND_USERNAME: waste_submit_reg_packaging_api_ddl
+
+jobs:
+  check-schema:
+    name: Validate and apply the changelog
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: waste_submit_reg_packaging_api
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Create the DDL and DML users, as CDP does
+        run: psql -v ON_ERROR_STOP=1 -U postgres -d "$DATABASE" -f compose/postgres/init.sql
+
+      - name: Install Liquibase
+        run: |
+          mkdir -p ./liquibase
+          curl -sL "https://github.com/liquibase/liquibase/releases/download/v${LIQUIBASE_VERSION}/liquibase-${LIQUIBASE_VERSION}.tar.gz" | tar xz -C ./liquibase
+          ./liquibase/liquibase lpm add postgresql --global
+
+      - name: Validate the changelog
+        run: ./liquibase/liquibase validate
+
+      # Applies main's changelog first, as CDP's databases already have it, then this branch's on top. If the
+      # branch edits a changeset that main already has, Liquibase stops with a checksum error: add a new
+      # changeset instead.
+      - name: Apply the changelog from main
+        run: |
+          git worktree add ../base "origin/${{ github.base_ref }}"
+          if [ -f ../base/changelog/db.changelog.xml ]; then
+            LIQUIBASE_SEARCH_PATH=../base/changelog ./liquibase/liquibase update
+          else
+            echo "main has no changelog yet"
+          fi
+
+      - name: Apply this branch's changelog on top
+        run: ./liquibase/liquibase update
+
+      - name: The app user can use the tables but not change the schema
+        run: |
+          psql -v ON_ERROR_STOP=1 -U "$APP_USER" -d "$DATABASE" -c 'SELECT count(*) FROM reg_registration_submission'
+          if psql -v ON_ERROR_STOP=1 -U "$APP_USER" -d "$DATABASE" -c 'CREATE TABLE should_fail (id int)'; then
+            echo "The app user was able to create a table"
+            exit 1
+          fi

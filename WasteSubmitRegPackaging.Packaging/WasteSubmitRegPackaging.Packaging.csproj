@@ -19,7 +19,6 @@
   <ItemGroup>
     <ProjectReference Include="..\WasteSubmitRegPackaging.SharedKernel\WasteSubmitRegPackaging.SharedKernel.csproj" />
     <ProjectReference Include="..\WasteSubmitRegPackaging.SharedKernel.Infrastructure\WasteSubmitRegPackaging.SharedKernel.Infrastructure.csproj" />
-    <ProjectReference Include="..\WasteSubmitRegPackaging.Registration.Contracts\WasteSubmitRegPackaging.Registration.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

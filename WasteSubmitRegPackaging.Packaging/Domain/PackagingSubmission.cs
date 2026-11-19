@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using WasteSubmitRegPackaging.SharedKernel.Actors;
+using WasteSubmitRegPackaging.SharedKernel.Users;
 using WasteSubmitRegPackaging.SharedKernel.Domain;
 using WasteSubmitRegPackaging.SharedKernel.Results;
 
@@ -38,10 +38,11 @@ internal sealed class PackagingSubmission : AggregateRoot<PackagingSubmissionId>
     public int PackagingYear { get; private set; }
 
     /// <summary>
-    /// The registration this submission was checked against. Kept as an ID only, with no foreign key,
-    /// because modules don't share tables.
+    /// The registration year this data is reported before: <see cref="PackagingYear"/> + 1 (report your 2025 packaging
+    /// data before registering for 2026). SAMPLE rule, the same as the seeded submission periods; to confirm with the
+    /// business. A year, not a registration id, because producers report packaging data before they register.
     /// </summary>
-    public Guid RegistrationSubmissionId { get; private set; }
+    public int RegistrationYear { get; private set; }
 
     public PackagingSubmissionStatus Status { get; private set; }
 
@@ -50,16 +51,16 @@ internal sealed class PackagingSubmission : AggregateRoot<PackagingSubmissionId>
     public DateTimeOffset CreatedAt { get; private set; }
 
     public static PackagingSubmission Create(
-        Actor producer, Guid organisationId, int packagingYear, Guid registrationSubmissionId, DateTimeOffset now)
+        ProducerUser createdBy, Guid organisationId, int packagingYear, DateTimeOffset now)
     {
         var submission = new PackagingSubmission
         {
             Id = PackagingSubmissionId.New(),
             OrganisationId = organisationId,
             PackagingYear = packagingYear,
-            RegistrationSubmissionId = registrationSubmissionId,
+            RegistrationYear = packagingYear + 1,
             Status = PackagingSubmissionStatus.Draft,
-            CreatedByUserId = producer.UserId,
+            CreatedByUserId = createdBy.UserId,
             CreatedAt = now
         };
 
@@ -73,14 +74,8 @@ internal static class PackagingErrors
     public static Error NotFound(PackagingSubmissionId id) =>
         Error.NotFound("packaging.not_found", $"No packaging submission with ID {id}.");
 
-    public static readonly Error OnlyProducers =
-        Error.Forbidden("packaging.producers_only", "Only a producer user can do this.");
-
     public static readonly Error NotYourOrganisation =
         Error.Forbidden("packaging.not_your_organisation", "The user does not act for this organisation.");
-
-    public static readonly Error NotRegistered =
-        Error.Validation("packaging.not_registered", "The organisation has no granted registration for the year.");
 }
 
 internal interface IPackagingSubmissionRepository

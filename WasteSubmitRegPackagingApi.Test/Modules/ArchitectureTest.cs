@@ -1,6 +1,8 @@
 using System.Reflection;
 using NetArchTest.Rules;
 using WasteSubmitRegPackaging.Packaging;
+using WasteSubmitRegPackaging.Fees;
+using WasteSubmitRegPackaging.SubmissionPeriods;
 using WasteSubmitRegPackaging.Registration;
 using WasteSubmitRegPackaging.SharedKernel.Domain;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
@@ -17,17 +19,21 @@ public class ArchitectureTest
 {
     private static readonly Assembly s_registration = typeof(RegistrationModule).Assembly;
     private static readonly Assembly s_packaging = typeof(PackagingModule).Assembly;
+    private static readonly Assembly s_fees = typeof(FeesModule).Assembly;
+    private static readonly Assembly s_submissionPeriods = typeof(SubmissionPeriodsModule).Assembly;
+    private static readonly Assembly[] s_sharedDataModules = [s_fees, s_submissionPeriods];
     private static readonly Assembly s_sharedKernel = typeof(AggregateRoot<>).Assembly;
 
-    public static TheoryData<string> Modules => [s_registration.GetName().Name!, s_packaging.GetName().Name!];
+    public static TheoryData<string> Modules =>
+        [.. new[] { s_registration, s_packaging, s_fees, s_submissionPeriods }.Select(assembly => assembly.GetName().Name!)];
 
     [Fact]
-    public void Packaging_does_not_reference_the_registration_module_only_its_contracts()
+    public void Packaging_does_not_reference_the_registration_module()
     {
+        // If Packaging ever needs Registration in a command, it uses Registration.Contracts, never the module.
         var references = s_packaging.GetReferencedAssemblies().Select(a => a.Name).ToList();
 
         Assert.DoesNotContain("WasteSubmitRegPackaging.Registration", references);
-        Assert.Contains("WasteSubmitRegPackaging.Registration.Contracts", references);
     }
 
     [Fact]
@@ -36,6 +42,32 @@ public class ArchitectureTest
         var references = s_registration.GetReferencedAssemblies().Select(a => a.Name!).ToList();
 
         Assert.DoesNotContain(references, name => name.StartsWith("WasteSubmitRegPackaging.Packaging", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_shared_data_modules_depend_on_no_other_module()
+    {
+        // Every workflow uses fees and submission periods, so they can't use a workflow: that would be a cycle.
+        // They don't need each other either.
+        foreach (var assembly in s_sharedDataModules)
+        {
+            var references = assembly.GetReferencedAssemblies().Select(a => a.Name!).ToList();
+            var others = new[] { "Registration", "Packaging", "Fees", "SubmissionPeriods" }
+                .Where(name => assembly.GetName().Name != $"WasteSubmitRegPackaging.{name}");
+
+            foreach (var other in others)
+                Assert.DoesNotContain(references, name => name.StartsWith($"WasteSubmitRegPackaging.{other}", StringComparison.Ordinal));
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Modules))]
+    public void Modules_use_the_shared_data_modules_only_through_their_contracts(string module)
+    {
+        var references = Load(module).GetReferencedAssemblies().Select(a => a.Name).ToList();
+
+        foreach (var shared in s_sharedDataModules.Where(assembly => assembly.GetName().Name != module))
+            Assert.DoesNotContain(shared.GetName().Name, references);
     }
 
     [Fact]
@@ -114,7 +146,8 @@ public class ArchitectureTest
         Assert.Equal(PolicyNames.Write, ModulePolicies.Write);
     }
 
-    private static Assembly Load(string name) => name == s_registration.GetName().Name ? s_registration : s_packaging;
+    private static Assembly Load(string name) =>
+        new[] { s_registration, s_packaging, s_fees, s_submissionPeriods }.Single(assembly => assembly.GetName().Name == name);
 
     private static string Failing(NetArchTest.Rules.TestResult result) =>
         "Breaking types: " + string.Join(", ", result.FailingTypeNames ?? []);

@@ -9,8 +9,8 @@ internal static class RegistrationTestData
 
     public static RegistrationSubmission Started() =>
         RegistrationSubmission.Start(
-            TestActors.Producer,
-            TestActors.ProducerOrganisationId,
+            TestUsers.Producer,
+            TestUsers.ProducerOrganisationId,
             complianceSchemeId: null,
             registrationYear: 2026,
             RegistrationJourney.DirectLargeProducer,
@@ -21,23 +21,12 @@ internal static class RegistrationTestData
     public static RegistrationSubmission SubmittedForApproval()
     {
         var submission = Started();
-        submission.SubmitApplication(TestActors.Producer, "Additional information", Now).ShouldSucceed();
+        submission.SubmitApplication(TestUsers.Producer, "Additional information", Now).ShouldSucceed();
         return submission;
     }
 
     public static void ShouldSucceed(this Result result) =>
         Assert.True(result.IsSuccess, result.Error?.Code);
-}
-
-internal sealed class FixedReferenceNumberGenerator(string referenceNumber = "R26EP00000001") : IRegistrationReferenceNumberGenerator
-{
-    public int Calls { get; private set; }
-
-    public string Generate(RegistrationSubmission submission)
-    {
-        Calls++;
-        return referenceNumber;
-    }
 }
 
 /// <summary>

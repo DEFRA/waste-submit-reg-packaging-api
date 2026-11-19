@@ -26,7 +26,7 @@ public class RegistrationSubmissionTest
     {
         // Domain types are internal, so theory data passes names rather than enum values.
         var result = RegistrationSubmission.Start(
-            TestActors.Producer, TestActors.ProducerOrganisationId, withComplianceScheme ? Guid.NewGuid() : null,
+            TestUsers.Producer, TestUsers.ProducerOrganisationId, withComplianceScheme ? Guid.NewGuid() : null,
             2026, Enum.Parse<RegistrationJourney>(journey), Nation.England, "PEPR00012345", s_now);
 
         Assert.Equal("registration.compliance_scheme_mismatch", result.Error?.Code);
@@ -38,52 +38,45 @@ public class RegistrationSubmissionTest
         var submission = RegistrationTestData.Started();
 
         var result = submission.RecordDecision(
-            RegulatorDecision.Grant, TestActors.Regulator, null, null, new FixedReferenceNumberGenerator(), s_now);
+            RegulatorDecision.Grant, TestUsers.Regulator, null, null, s_now);
 
         Assert.Equal(ErrorType.Conflict, result.Error?.Type);
         Assert.Equal(RegistrationStatus.InProgress, submission.Status);
     }
 
     [Fact]
-    public void The_first_grant_mints_the_reference_number_and_sets_the_registration_date()
+    public void A_grant_makes_the_registration_granted_and_raises_a_decision_event()
     {
         var submission = RegistrationTestData.SubmittedForApproval();
-        var generator = new FixedReferenceNumberGenerator();
 
-        submission.RecordDecision(RegulatorDecision.Grant, TestActors.Regulator, null, null, generator, s_now).ShouldSucceed();
+        submission.RecordDecision(RegulatorDecision.Grant, TestUsers.Regulator, null, null, s_now).ShouldSucceed();
 
         Assert.Equal(RegistrationStatus.Granted, submission.Status);
-        Assert.Equal("R26EP00000001", submission.RegistrationReferenceNumber);
-        Assert.Equal(s_now, submission.RegistrationDate);
-        Assert.Equal(1, generator.Calls);
         Assert.Contains(submission.DomainEvents, e => e is RegistrationDecisionRecorded { Decision: RegulatorDecision.Grant });
     }
 
     [Fact]
-    public void Cancelling_keeps_the_reference_number_and_records_the_effective_date()
+    public void Cancelling_records_the_effective_date()
     {
         var submission = RegistrationTestData.SubmittedForApproval();
-        var generator = new FixedReferenceNumberGenerator();
-        submission.RecordDecision(RegulatorDecision.Grant, TestActors.Regulator, null, null, generator, s_now).ShouldSucceed();
+        submission.RecordDecision(RegulatorDecision.Grant, TestUsers.Regulator, null, null, s_now).ShouldSucceed();
         var effective = s_now.AddDays(7);
 
-        submission.RecordDecision(RegulatorDecision.Cancel, TestActors.Regulator, "Ceased trading", effective, generator, s_now.AddDays(1))
+        submission.RecordDecision(RegulatorDecision.Cancel, TestUsers.Regulator, "Ceased trading", effective, s_now.AddDays(1))
             .ShouldSucceed();
 
         Assert.Equal(RegistrationStatus.Cancelled, submission.Status);
-        Assert.Equal("R26EP00000001", submission.RegistrationReferenceNumber);
         Assert.Equal(effective, submission.History[^1].EffectiveDate);
-        Assert.Equal(1, generator.Calls);
     }
 
     [Fact]
     public void A_queried_registration_can_be_submitted_again()
     {
         var submission = RegistrationTestData.SubmittedForApproval();
-        submission.RecordDecision(RegulatorDecision.Query, TestActors.Regulator, "Please explain", null, new FixedReferenceNumberGenerator(), s_now)
+        submission.RecordDecision(RegulatorDecision.Query, TestUsers.Regulator, "Please explain", null, s_now)
             .ShouldSucceed();
 
-        submission.SubmitApplication(TestActors.Producer, "Explained", s_now.AddDays(1)).ShouldSucceed();
+        submission.SubmitApplication(TestUsers.Producer, "Explained", s_now.AddDays(1)).ShouldSucceed();
 
         Assert.Equal(RegistrationStatus.SubmittedForApproval, submission.Status);
     }
@@ -99,7 +92,7 @@ public class RegistrationSubmissionTest
     {
         var submission = RegistrationTestData.SubmittedForApproval();
         foreach (var decision in Decisions(taken))
-            submission.RecordDecision(decision, TestActors.Regulator, "comment", null, new FixedReferenceNumberGenerator(), s_now).ShouldSucceed();
+            submission.RecordDecision(decision, TestUsers.Regulator, "comment", null, s_now).ShouldSucceed();
 
         Assert.Equal(Decisions(expected), submission.AvailableRegulatorDecisions());
     }
@@ -112,7 +105,7 @@ public class RegistrationSubmissionTest
     {
         var submission = RegistrationTestData.SubmittedForApproval();
 
-        var result = submission.SubmitApplication(TestActors.Producer, null, s_now);
+        var result = submission.SubmitApplication(TestUsers.Producer, null, s_now);
 
         Assert.Equal("registration.submission_not_allowed", result.Error?.Code);
     }

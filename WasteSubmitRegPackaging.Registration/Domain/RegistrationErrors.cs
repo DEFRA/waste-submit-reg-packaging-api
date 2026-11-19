@@ -19,12 +19,6 @@ internal static class RegistrationErrors
             "registration.compliance_scheme_mismatch",
             "A compliance scheme ID is required for compliance scheme journeys and not allowed for direct producers.");
 
-    public static readonly Error OnlyProducers =
-        Error.Forbidden("registration.producers_only", "Only a producer user can do this.");
-
-    public static readonly Error OnlyRegulators =
-        Error.Forbidden("registration.regulators_only", "Only a regulator user can make a decision.");
-
     public static readonly Error NotYourOrganisation =
         Error.Forbidden("registration.not_your_organisation", "The user does not act for this organisation.");
 

@@ -1,5 +1,5 @@
 using WasteSubmitRegPackaging.Registration.Domain;
-using WasteSubmitRegPackaging.SharedKernel.Actors;
+using WasteSubmitRegPackaging.SharedKernel.Users;
 using WasteSubmitRegPackaging.SharedKernel.Messaging;
 using WasteSubmitRegPackaging.SharedKernel.Results;
 
@@ -9,7 +9,7 @@ namespace WasteSubmitRegPackaging.Registration.Application.Commands.StartRegistr
 // about "start a registration", open this folder.
 
 internal sealed record StartRegistrationCommand(
-    Actor Actor,
+    ProducerUser Producer,
     Guid OrganisationId,
     Guid? ComplianceSchemeId,
     int RegistrationYear,
@@ -24,10 +24,7 @@ internal sealed class StartRegistrationHandler(IRegistrationSubmissionRepository
     {
         // Application rules: who may do this, and anything that needs the database. The request's
         // shape (required fields, lengths) was already checked at the endpoint.
-        if (command.Actor.Type != ActorType.Producer)
-            return RegistrationErrors.OnlyProducers;
-
-        if (command.Actor.OrganisationId != command.OrganisationId)
+        if (!command.Producer.ActsFor(command.OrganisationId))
             return RegistrationErrors.NotYourOrganisation;
 
         if (await repository.ApplicationReferenceNumberExistsAsync(command.ApplicationReferenceNumber, cancellationToken))
@@ -35,7 +32,7 @@ internal sealed class StartRegistrationHandler(IRegistrationSubmissionRepository
 
         // Domain rules: the aggregate checks its own invariants.
         var started = RegistrationSubmission.Start(
-            command.Actor,
+            command.Producer,
             command.OrganisationId,
             command.ComplianceSchemeId,
             command.RegistrationYear,

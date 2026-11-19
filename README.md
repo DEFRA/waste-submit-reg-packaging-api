@@ -32,7 +32,7 @@ is connected to its own Postgres database.
 | `GET /health` | Whether the service is running |
 | `GET /health/db` | Whether the service can reach Postgres |
 | `GET /describe` | The service name. Requires authentication, see [Service-to-service authentication](#service-to-service-authentication) |
-| `GET /swagger`, `GET /openapi/v1.json` | The API documentation, where Swagger is turned on |
+| `GET /swagger`, `GET /openapi/v1.json`, `GET /openapi/unpublished.json` | The API documentation, where Swagger is turned on. See [The OpenAPI contract for frontends](#the-openapi-contract-for-frontends) |
 
 Both packaging endpoints return their results under `items`, which is empty when there is nothing for the year or for
 that submitter. The submitter endpoint's `404` response is declared but not currently used: epr-common-data-api only
@@ -141,13 +141,34 @@ the DML-only user. `compose/postgres/init.sql` creates both users, but only on a
 
 - **No password.** The service signs in with a 15-minute token from its IAM role, and fetches a new one every 10 minutes.
 - **Two users.** The service uses `waste_submit_reg_packaging_api`, which can read and write data. Schema changes use
-  `waste_submit_reg_packaging_api_ddl`. Tables are created by the Liquibase changelog in `changelog/`, applied from the
-  Portal ("Apply Changelog"). Publishing the changelog from GitHub Actions is not set up yet.
+  `waste_submit_reg_packaging_api_ddl`. Tables are created by the Liquibase changelog in `changelog/` (see
+  [Schema changes in CDP](#schema-changes-in-cdp)).
 - **TLS.** `VerifyFull` checks the database's certificate against the RDS root certificates CDP supplies in
   `TRUSTSTORE_RDS_ROOT_CA`. If that ever fails, `Postgres__SslMode=Require` keeps the connection encrypted without
   checking the certificate.
 - **Looking at the data.** Open a Terminal for the service in the CDP Portal and run `psql`, or
   `psql -U waste_submit_reg_packaging_api_ddl` for schema changes.
+
+### Schema changes in CDP
+
+The service never changes its own schema. A changeset reaches a CDP database in two steps:
+
+1. **Publish.** `publish.yml` publishes `changelog/` on every push to main, with the same version as the service
+   build, but only when the changelog has changed. Published versions can't be overwritten. To publish without a
+   build (or the first time), run **Publish DB Schema** (`publish-db-schema.yml`) from the GitHub Actions tab.
+2. **Apply.** In the CDP Portal, open [Apply Changelog](https://portal.cdp-int.defra.cloud/apply-changelog) (or **Apply**
+   under *Database Changelogs* on the service's page), then pick the changelog version and the environment. The page
+   shows what each environment already has. Liquibase runs as the DDL user, and the run's logs are in OpenSearch
+   (index `cdp-codebuild`).
+
+Every pull request runs **Check Liquibase Schema** (`check-schema.yml`). On a throwaway Postgres 16 with CDP's two
+users, it validates the changelog, applies main's changelog and then the branch's on top (so editing a changeset main
+already has fails, with a checksum error), and checks the app user can't create tables.
+
+**Fix forward.** CDP doesn't roll back changesets. To undo or correct a change, add a new changeset; never edit or
+delete one that has been merged. Changesets don't need a `<rollback>`. CDP sets `$ENV`, so a changeset can be limited to
+some environments with `context="dev"` or `context="!prod"`. Details are in CDP's
+[relational databases guide](https://portal.cdp-int.defra.cloud/documentation/how-to/relational-databases.md).
 
 ## Health checks
 
@@ -217,7 +238,57 @@ Swagger shows every endpoint, its parameters and its response shapes, and lets y
 3. Pick an endpoint, choose **Try it out**, fill in the parameters and choose **Execute**. Use year `2024` and the
    organisation IDs under [Endpoints](#endpoints).
 
-The OpenAPI document behind the page is at http://localhost:8085/openapi/v1.json.
+The page has two OpenAPI documents (pick one at the top right):
+
+| Document | URL | What's in it |
+|---|---|---|
+| **v1** | http://localhost:8085/openapi/v1.json | The published endpoints: the contract. Frontends generate their clients from this one. |
+| **unpublished** | http://localhost:8085/openapi/unpublished.json | Endpoints that aren't published yet, including the sample registration, regulator and packaging submission endpoints. They may change, so don't generate from it. |
+
+### Publishing an endpoint
+
+Every endpoint works, and can be tried from Swagger, whether it's published or not. Publishing only decides whether it's
+in the v1 document, the contract that's merged and that frontends build against.
+
+- **To keep an endpoint unpublished**, add `.Unpublished()` to it or to its route group:
+
+  ```csharp
+  group.MapGet("/packaging/{id}/summary", GetSummary)
+      .WithName("GetPackagingSummary")
+      .Unpublished();
+  ```
+
+  `.AsSample(...)` makes a whole group unpublished and also marks it "(sample)".
+- **To publish it**, remove `.Unpublished()` (or `.AsSample(...)`). The endpoint then appears in the v1 contract, the
+  snapshot test fails, and accepting the new snapshot makes the change visible in the pull request.
+
+**Publishing an endpoint is a formal step, not just a code change.** Once an endpoint is in the v1 contract, a frontend
+can build on it and production traffic can reach it. So before the pull request that publishes it is merged:
+
+- **Performance:** the endpoint must be performance tested as part of the wider performance-testing process: a CDP
+  Performance Test Suite run in the perf-test environment, with realistic data volumes.
+- **The contract:** it must be agreed with the teams that will call it, because changing it later breaks their
+  generated clients.
+
+Unpublished endpoints are left out of the contract but are still mapped. Anyone with an ACL client can call them
+wherever the service is deployed, so don't rely on `.Unpublished()` to hide an endpoint.
+
+### The OpenAPI contract for frontends
+
+Every build writes the documents to `WasteSubmitRegPackagingApi/openapi.json` (v1) and `openapi_unpublished.json`. They
+aren't committed. Instead:
+
+- **The approved v1 contract is committed** as
+  `WasteSubmitRegPackagingApi.Test/OpenApi/OpenApiTest.The_v1_document_matches_the_approved_contract.verified.json`.
+  A test fails when the API changes it, so every change to the contract shows up in the pull request. To accept a
+  change, replace the `.verified.json` with the `.received.json` the failing run writes.
+- **Each pull request build** lints `openapi.json` with Vacuum and attaches it as the `openapi.json` artifact.
+- **For whatever is deployed**, fetch `/openapi/v1.json` from dev or test (below).
+
+To call the API, a frontend needs its own ACL client: `Type: ApiKey` and its `Scopes` (`read`, plus `write` for
+commands) under `Acl:Clients:{clientId}` in cdp-app-config, and the secret in CDP secrets as
+`Acl__Clients__{clientId}__Secret`. It sends `Authorization: Basic base64(clientId:secret)`. `Developer` is only the
+local client. Endpoints that act for a user also take the `X-User-*` headers listed in the document.
 
 ### Swagger in CDP
 
@@ -272,11 +343,14 @@ Docker. Without Docker, that test is skipped rather than failed, which is what h
 
 Builds run in GitHub Actions, and deployments happen in the [CDP Portal](https://portal.cdp-int.defra.cloud).
 
-1. **Pull request to `main`.** [check-pull-request.yml](.github/workflows/check-pull-request.yml) runs `dotnet test`.
+1. **Pull request to `main`.** [check-pull-request.yml](.github/workflows/check-pull-request.yml) runs `dotnet test`,
+   and [check-schema.yml](.github/workflows/check-schema.yml) checks the Liquibase changelog against Postgres.
 2. **Merge to `main`.** [publish.yml](.github/workflows/publish.yml) runs CDP's build action. It builds the Docker image
    (which runs the tests again), tags the commit with a new version and pushes the image to CDP. Each merge bumps the
    minor version, for example `0.2.0` to `0.3.0`. Put `#major` or `#patch` in a commit message to bump that part
    instead. The build action also publishes the image to DEFRA's public Docker Hub unless `push-dockerhub: false` is set.
+   The same job publishes the Liquibase changelog, if it changed, ready to apply from the Portal (see
+   [Schema changes in CDP](#schema-changes-in-cdp)).
 3. **Deploy.** In the CDP Portal, choose **Deploy Service**, then the version and environment. Each version is built
    once, so promoting means deploying the same version to the next environment.
    - The service page's **Automations** tab can deploy every new version to dev, test or perf-test automatically.
@@ -296,7 +370,7 @@ Not set up yet:
 
 | Path | Contains |
 |---|---|
-| `WasteSubmitRegPackaging.*/` | The modules (Registration, Packaging) and the shared kernel. See [docs/architecture.md](docs/architecture.md) |
+| `WasteSubmitRegPackaging.*/` | The modules (Registration, Packaging) and the shared kernel. See [docs/project_architecture.md](docs/project_architecture.md) |
 | `changelog/` | The Liquibase changelog: one folder per module |
 | `WasteSubmitRegPackagingApi/Obligations/` | The packaging endpoints, response models, the mapping from registration file codes to joiner and leaver events, and the stub data |
 | `WasteSubmitRegPackagingApi/Config/` | Settings classes, validated at startup |

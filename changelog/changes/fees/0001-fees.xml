@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fees module (fee_*): the fee tables, shared by every workflow module.
+
+  The tables and ids mirror epr-payment-service's [Lookup] schema (Group, SubGroup, Regulator,
+  RegistrationFees), so the registration fees, payments and fee line items that move later reference
+  the same ids with no conversion. Amounts are in pence, numeric(19,4), as there.
+
+  The data is owned here, not by the service: a new rate is a new changeset, never an UPDATE by the
+  app. Only the packaging resubmission rates are seeded now. Registration, late, subsidiary and
+  accreditation rates come with the registration move: same tables, new rows.
+-->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="fees-0001-fee-tables" author="waste-submit-reg">
+        <sql>
+            -- The regulator for each nation. The ids are the Nations ids used everywhere in EPR. [Lookup].[Regulator].
+            CREATE TABLE fee_regulator (
+                id          smallint     NOT NULL CONSTRAINT pk_fee_regulator PRIMARY KEY,
+                code        varchar(10)  NOT NULL CONSTRAINT uq_fee_regulator_code UNIQUE,
+                description varchar(255) NOT NULL
+            );
+
+            -- The kind of fee, for example 5 ProducerResubmission. [Lookup].[Group].
+            CREATE TABLE fee_group (
+                id          integer      NOT NULL CONSTRAINT pk_fee_group PRIMARY KEY,
+                code        varchar(50)  NOT NULL CONSTRAINT uq_fee_group_code UNIQUE,
+                description varchar(255) NOT NULL
+            );
+
+            -- The variant within a group, for example 7 ReSubmitting. [Lookup].[SubGroup].
+            CREATE TABLE fee_sub_group (
+                id          integer      NOT NULL CONSTRAINT pk_fee_sub_group PRIMARY KEY,
+                code        varchar(50)  NOT NULL CONSTRAINT uq_fee_sub_group_code UNIQUE,
+                description varchar(255) NOT NULL
+            );
+
+            -- A rate for one group, sub-group and regulator over a date period. [Lookup].[RegistrationFees].
+            -- The dates are inclusive calendar dates: the payment service compares date parts only, and its
+            -- EffectiveTo values are 23:59:59 on the last day.
+            CREATE TABLE fee_rate (
+                id               integer       NOT NULL CONSTRAINT pk_fee_rate PRIMARY KEY,
+                fee_group_id     integer       NOT NULL CONSTRAINT fk_fee_rate_group REFERENCES fee_group (id),
+                fee_sub_group_id integer       NOT NULL CONSTRAINT fk_fee_rate_sub_group REFERENCES fee_sub_group (id),
+                regulator_id     smallint      NOT NULL CONSTRAINT fk_fee_rate_regulator REFERENCES fee_regulator (id),
+                amount           numeric(19,4) NOT NULL CONSTRAINT ck_fee_rate_amount CHECK (amount &gt;= 0),
+                effective_from   date          NOT NULL,
+                effective_to     date          NOT NULL,
+                CONSTRAINT ck_fee_rate_period CHECK (effective_to &gt;= effective_from)
+            );
+
+            -- Overlapping periods for the same fee are caught by a test (FeesSchemaTest) for now. A database
+            -- EXCLUDE constraint would need the btree_gist extension, which CDP doesn't enable by default.
+            CREATE INDEX ix_fee_rate_lookup ON fee_rate (fee_group_id, fee_sub_group_id, regulator_id, effective_from);
+        </sql>
+    </changeSet>
+
+    <changeSet id="fees-0002-fee-lookups" author="waste-submit-reg">
+        <comment>All groups, sub-groups and regulators, with the payment service's ids.</comment>
+        <sql>
+            INSERT INTO fee_regulator (id, code, description) VALUES
+                (1, 'GB-ENG', 'England'),
+                (2, 'GB-SCT', 'Scotland'),
+                (3, 'GB-WLS', 'Wales'),
+                (4, 'GB-NIR', 'Northern Ireland');
+
+            INSERT INTO fee_group (id, code, description) VALUES
+                (1, 'ProducerType', 'Producer Type'),
+                (2, 'ComplianceScheme', 'Compliance Scheme'),
+                (3, 'ProducerSubsidiaries', 'Producer Subsidiaries'),
+                (4, 'ComplianceSchemeSubsidiaries', 'Compliance Scheme Subsidiaries'),
+                (5, 'ProducerResubmission', 'Producer re-submitting a report'),
+                (6, 'ComplianceSchemeResubmission', 'Compliance Scheme re-submitting a report'),
+                (7, 'Exporters', 'Exporters'),
+                (8, 'Reprocessors', 'Reprocessors');
+
+            INSERT INTO fee_sub_group (id, code, description) VALUES
+                (1, 'Large', 'Large producer'),
+                (2, 'Small', 'Small producer'),
+                (3, 'Registration', 'Registration'),
+                (4, 'Online', 'Online Market'),
+                (5, 'UpTo20', 'Up to 20'),
+                (6, 'MoreThan20', 'More than 20'),
+                (7, 'ReSubmitting', 'Re-submitting a report'),
+                (8, 'LateFee', 'Late Fee'),
+                (9, 'Aluminium', 'Aluminium'),
+                (10, 'Glass', 'Glass'),
+                (11, 'PaperOrBoardOrFibreBasedCompositeMaterial', 'Paper, board or fibre-based composite material'),
+                (12, 'Plastic', 'Plastic'),
+                (13, 'Steel', 'Steel'),
+                (14, 'Wood', 'Wood'),
+                (15, 'ClosedLoop', 'Closed Loop Recycling');
+        </sql>
+    </changeSet>
+
+    <changeSet id="fees-0003-resubmission-fee-rates" author="waste-submit-reg">
+        <comment>
+            Packaging resubmission rates (groups 5 and 6, sub-group 7), with the payment service's row ids
+            and its current state (the 2026 rows were extended to 2050 by its migration SUB-262).
+        </comment>
+        <sql>
+            INSERT INTO fee_rate (id, fee_group_id, fee_sub_group_id, regulator_id, amount, effective_from, effective_to) VALUES
+                (45,       5, 7, 1, 71400, '2024-01-01', '2025-12-31'),
+                (46,       5, 7, 2, 71400, '2024-01-01', '2025-12-31'),
+                (47,       5, 7, 3, 71400, '2024-01-01', '2025-12-31'),
+                (48,       5, 7, 4, 71400, '2024-01-01', '2025-12-31'),
+                (57,       6, 7, 1, 43000, '2024-01-01', '2025-12-31'),
+                (58,       6, 7, 2, 43000, '2024-01-01', '2025-12-31'),
+                (59,       6, 7, 3, 43000, '2024-01-01', '2025-12-31'),
+                (60,       6, 7, 4, 43000, '2024-01-01', '2025-12-31'),
+                (26000028, 6, 7, 1, 51200, '2026-01-01', '2050-12-31'),
+                (26000029, 6, 7, 2, 51200, '2026-01-01', '2050-12-31'),
+                (26000030, 6, 7, 3, 51200, '2026-01-01', '2050-12-31'),
+                (26000031, 6, 7, 4, 51200, '2026-01-01', '2050-12-31'),
+                (26000056, 5, 7, 1, 80700, '2026-01-01', '2050-12-31'),
+                (26000057, 5, 7, 2, 80700, '2026-01-01', '2050-12-31'),
+                (26000058, 5, 7, 3, 80700, '2026-01-01', '2050-12-31'),
+                (26000059, 5, 7, 4, 80700, '2026-01-01', '2050-12-31');
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

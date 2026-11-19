@@ -34,9 +34,9 @@ GET {{base}}/health/db
 POST {{base}}/registrations
 Authorization: {{auth}}
 Content-Type: application/json
-X-Actor-User-Id: {{producer}}
-X-Actor-Type: Producer
-X-Actor-Organisation-Id: {{org}}
+X-User-Id: {{producer}}
+X-User-Type: Producer
+X-Organisation-Id: {{org}}
 
 {
   "organisationId": "{{org}}",
@@ -54,9 +54,9 @@ Authorization: {{auth}}
 POST {{base}}/registrations/{{id}}/application-submission
 Authorization: {{auth}}
 Content-Type: application/json
-X-Actor-User-Id: {{producer}}
-X-Actor-Type: Producer
-X-Actor-Organisation-Id: {{org}}
+X-User-Id: {{producer}}
+X-User-Type: Producer
+X-Organisation-Id: {{org}}
 
 { "comments": "Ready for review" }
 
@@ -64,12 +64,12 @@ X-Actor-Organisation-Id: {{org}}
 GET {{base}}/regulator/registrations/{{id}}
 Authorization: {{auth}}
 
-### 5. Regulator grants → 200, status Granted, with a registration reference number
+### 5. Regulator grants → 200, status Granted
 POST {{base}}/regulator/registrations/{{id}}/decisions
 Authorization: {{auth}}
 Content-Type: application/json
-X-Actor-User-Id: {{regulator}}
-X-Actor-Type: Regulator
+X-User-Id: {{regulator}}
+X-User-Type: Regulator
 
 { "decision": "Grant" }
 
@@ -77,28 +77,28 @@ X-Actor-Type: Regulator
 POST {{base}}/regulator/registrations/{{id}}/decisions
 Authorization: {{auth}}
 Content-Type: application/json
-X-Actor-User-Id: {{regulator}}
-X-Actor-Type: Regulator
+X-User-Id: {{regulator}}
+X-User-Type: Regulator
 
 { "decision": "Grant" }
 
 #######################################################################
-# Packaging: calls Registration through its contract
+# Packaging: no registration needed first (producers report packaging data before registering)
 #######################################################################
 
-### 7. Start a packaging submission for the registered organisation → 201
+### 7. Start a packaging submission → 201, with registrationYear 2027 (packagingYear + 1)
 # @name packaging
-POST {{base}}/packaging-submissions
+POST {{base}}/packaging/submissions
 Authorization: {{auth}}
 Content-Type: application/json
-X-Actor-User-Id: {{producer}}
-X-Actor-Type: Producer
-X-Actor-Organisation-Id: {{org}}
+X-User-Id: {{producer}}
+X-User-Type: Producer
+X-Organisation-Id: {{org}}
 
 { "organisationId": "{{org}}", "packagingYear": 2026 }
 
 ### 8. Read it back
-GET {{base}}/packaging-submissions/{{packaging.response.body.$.packagingSubmissionId}}
+GET {{base}}/packaging/submissions/{{packaging.response.body.$.packagingSubmissionId}}
 Authorization: {{auth}}
 
 #######################################################################
@@ -108,7 +108,7 @@ Authorization: {{auth}}
 ### 401: no credentials
 GET {{base}}/regulator/registrations/{{id}}
 
-### 400 actor.missing: no X-Actor-* headers
+### 400 user.missing: no X-User-* headers
 POST {{base}}/regulator/registrations/{{id}}/decisions
 Authorization: {{auth}}
 Content-Type: application/json
@@ -119,8 +119,8 @@ Content-Type: application/json
 POST {{base}}/regulator/registrations/{{id}}/decisions
 Authorization: {{auth}}
 Content-Type: application/json
-X-Actor-User-Id: {{regulator}}
-X-Actor-Type: Regulator
+X-User-Id: {{regulator}}
+X-User-Type: Regulator
 
 { "comments": "{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}" }
 
@@ -128,18 +128,18 @@ X-Actor-Type: Regulator
 POST {{base}}/regulator/registrations/{{id}}/decisions
 Authorization: {{auth}}
 Content-Type: application/json
-X-Actor-User-Id: {{regulator}}
-X-Actor-Type: Regulator
+X-User-Id: {{regulator}}
+X-User-Type: Regulator
 
 { "decision": "Query" }
 
-### 403 registration.regulators_only: a producer tries to decide
+### 403 user.regulators_only: a producer tries to decide
 POST {{base}}/regulator/registrations/{{id}}/decisions
 Authorization: {{auth}}
 Content-Type: application/json
-X-Actor-User-Id: {{producer}}
-X-Actor-Type: Producer
-X-Actor-Organisation-Id: {{org}}
+X-User-Id: {{producer}}
+X-User-Type: Producer
+X-Organisation-Id: {{org}}
 
 { "decision": "Grant" }
 
@@ -147,12 +147,49 @@ X-Actor-Organisation-Id: {{org}}
 GET {{base}}/regulator/registrations/00000000-0000-0000-0000-000000000000
 Authorization: {{auth}}
 
-### 400 packaging.not_registered: an organisation with no granted registration
-POST {{base}}/packaging-submissions
+# ---- Fees and submission periods: no user headers needed, just the read scope ----
+
+### Registration submission periods for 2026 (ids 3 to 6, as in the payment service)
+GET {{base}}/submission-periods/registration?registrationYear=2026
+Authorization: {{auth}}
+
+### Packaging submission periods, each with the data periods it accepts
+GET {{base}}/submission-periods/packaging
+Authorization: {{auth}}
+
+### The submission period a data period code is submitted in, with its dates
+GET {{base}}/submission-periods/packaging?periodCode=2025-P0
+Authorization: {{auth}}
+
+### Tiles for a compliance scheme: every visible period, H2 and P0 together
+GET {{base}}/submission-periods/packaging/for-submitter-type?submitterType=ComplianceScheme
+Authorization: {{auth}}
+
+### Tiles for a small direct producer: only the periods that accept P0
+GET {{base}}/submission-periods/packaging/for-submitter-type?submitterType=DirectProducer&producerSize=Small
+Authorization: {{auth}}
+
+### One tile after it's chosen ("before you start"): July to December 2025 for a large producer, H2 only
+GET {{base}}/submission-periods/packaging/July%20to%20December%202025/for-submitter-type?submitterType=DirectProducer&producerSize=Large
+Authorization: {{auth}}
+
+### Producer resubmission fee (flat): 80700 pence in 2026. The inputs are pencilled in; this will take a packagingSubmissionId
+POST {{base}}/fees/packaging-resubmission
 Authorization: {{auth}}
 Content-Type: application/json
-X-Actor-User-Id: {{producer}}
-X-Actor-Type: Producer
-X-Actor-Organisation-Id: 44444444-4444-4444-4444-444444444444
 
-{ "organisationId": "44444444-4444-4444-4444-444444444444", "packagingYear": 2026 }
+{ "submitter": "Producer", "regulator": "GB-ENG", "resubmissionDate": "2026-03-01T10:00:00Z" }
+
+### Compliance scheme resubmission fee (per member), less a previous payment
+POST {{base}}/fees/packaging-resubmission
+Authorization: {{auth}}
+Content-Type: application/json
+
+{ "submitter": "ComplianceScheme", "regulator": "GB-WLS", "resubmissionDate": "2026-03-01T10:00:00Z", "memberCount": 3, "previousPayments": 51200 }
+
+### 400 fees.no_rate_for_date: before the first rate
+POST {{base}}/fees/packaging-resubmission
+Authorization: {{auth}}
+Content-Type: application/json
+
+{ "submitter": "Producer", "regulator": "GB-ENG", "resubmissionDate": "2023-12-31T10:00:00Z" }

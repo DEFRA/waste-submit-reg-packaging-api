@@ -13,7 +13,7 @@ internal sealed record PackagingSubmissionView(
     Guid Id,
     Guid OrganisationId,
     int PackagingYear,
-    Guid RegistrationSubmissionId,
+    int RegistrationYear,
     PackagingSubmissionStatus Status,
     DateTimeOffset CreatedAt);
 
@@ -28,7 +28,7 @@ internal sealed class GetPackagingSubmissionHandler(PackagingDbContext dbContext
             .AsNoTracking()
             .Where(s => s.Id == query.PackagingSubmissionId)
             .Select(s => new PackagingSubmissionView(
-                s.Id.Value, s.OrganisationId, s.PackagingYear, s.RegistrationSubmissionId, s.Status, s.CreatedAt))
+                s.Id.Value, s.OrganisationId, s.PackagingYear, s.RegistrationYear, s.Status, s.CreatedAt))
             .SingleOrDefaultAsync(cancellationToken);
 
         return view is null ? PackagingErrors.NotFound(query.PackagingSubmissionId) : view;

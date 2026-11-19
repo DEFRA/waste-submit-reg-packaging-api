@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WasteSubmitRegPackaging.Registration.Domain;
 using WasteSubmitRegPackaging.Registration.Infrastructure;
-using WasteSubmitRegPackaging.SharedKernel.Actors;
+using WasteSubmitRegPackaging.SharedKernel.Users;
 using WasteSubmitRegPackaging.SharedKernel.Messaging;
 using WasteSubmitRegPackaging.SharedKernel.Results;
 
@@ -22,16 +22,14 @@ internal sealed record RegistrationSubmissionView(
     RegistrationJourney Journey,
     Nation Nation,
     string ApplicationReferenceNumber,
-    string? RegistrationReferenceNumber,
     RegistrationStatus Status,
-    DateTimeOffset? RegistrationDate,
     IReadOnlyList<RegulatorDecision> AvailableRegulatorDecisions,
     IReadOnlyList<RegistrationHistoryItem> History);
 
 internal sealed record RegistrationHistoryItem(
     RegistrationEventType EventType,
-    ActorType ActorType,
-    Guid ActorUserId,
+    UserType UserType,
+    Guid UserId,
     string? Comments,
     DateTimeOffset? EffectiveDate,
     DateTimeOffset OccurredAt);
@@ -62,14 +60,12 @@ internal sealed class GetRegistrationSubmissionHandler(RegistrationDbContext dbC
             submission.Journey,
             submission.Nation,
             submission.ApplicationReferenceNumber,
-            submission.RegistrationReferenceNumber,
             submission.Status,
-            submission.RegistrationDate,
             submission.AvailableRegulatorDecisions(),
             submission.History
                 .OrderBy(item => item.OccurredAt)
                 .Select(item => new RegistrationHistoryItem(
-                    item.EventType, item.ActorType, item.ActorUserId, item.Comments, item.EffectiveDate, item.OccurredAt))
+                    item.EventType, item.UserType, item.UserId, item.Comments, item.EffectiveDate, item.OccurredAt))
                 .ToList());
     }
 }

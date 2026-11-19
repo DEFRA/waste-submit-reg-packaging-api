@@ -20,7 +20,6 @@ public static class RegistrationModule
         services.AddHandlersFromAssembly(typeof(RegistrationModule).Assembly);
 
         services.AddScoped<IRegistrationSubmissionRepository, RegistrationSubmissionRepository>();
-        services.AddSingleton<IRegistrationReferenceNumberGenerator, RegistrationReferenceNumberGenerator>();
 
         // The contract other modules call.
         services.AddScoped<IRegistrationModuleApi, RegistrationModuleApi>();

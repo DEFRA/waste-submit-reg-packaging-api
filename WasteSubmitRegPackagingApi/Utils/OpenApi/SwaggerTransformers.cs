@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
+using WasteSubmitRegPackaging.SharedKernel.Users;
 
 namespace WasteSubmitRegPackagingApi.Utils.OpenApi;
 
 /// <summary>
 /// Describes the API key and the actor headers in the OpenAPI document, so Swagger UI can call the
 /// endpoints: its Authorize button sends the Basic credentials, and endpoints that need an actor get
-/// the X-Actor-* header fields, filled in with example values.
+/// the X-User-* header fields for their kind of user, filled in with example values.
 /// </summary>
 internal static class SwaggerTransformers
 {
@@ -17,6 +18,8 @@ internal static class SwaggerTransformers
 
     public static OpenApiOptions AddSwaggerAuthTransformers(this OpenApiOptions options)
     {
+        options.CreateSchemaReferenceId = SchemaIds.ForDocument();
+
         options.AddDocumentTransformer((document, _, _) =>
         {
             document.Components ??= new OpenApiComponents();
@@ -66,18 +69,29 @@ internal static class SwaggerTransformers
                 {
                     [new OpenApiSecuritySchemeReference(BasicScheme, context.Document)] = []
                 });
+
+                // So generated clients know these can happen. Neither has a body.
+                operation.Responses ??= [];
+                operation.Responses.TryAdd("401", new OpenApiResponse { Description = "Missing or wrong client credentials." });
+                operation.Responses.TryAdd("403", new OpenApiResponse { Description = "The client doesn't have the scope this endpoint needs." });
             }
 
-            if (metadata.OfType<RequiresActorMetadata>().Any())
+            switch (metadata.OfType<RequiresUserMetadata>().FirstOrDefault()?.UserType)
             {
-                operation.Parameters ??= [];
-                operation.Parameters.Add(Header(ActorHeaders.UserId, required: true, "The user the caller is acting for.",
-                    format: "uuid", example: "22222222-2222-2222-2222-222222222222"));
-                operation.Parameters.Add(Header(ActorHeaders.Type, required: true, "Producer or Regulator.",
-                    example: "Producer", allowed: ["Producer", "Regulator"]));
-                operation.Parameters.Add(Header(ActorHeaders.OrganisationId, required: false,
-                    "The producer's organisation. Not needed for regulators.",
-                    format: "uuid", example: "11111111-1111-1111-1111-111111111111"));
+                case UserType.Producer:
+                    operation.Parameters ??= [];
+                    operation.Parameters.Add(Header(UserHeaders.UserId, "The producer user the caller is acting for.",
+                        format: "uuid", example: "22222222-2222-2222-2222-222222222222"));
+                    operation.Parameters.Add(Header(UserHeaders.Type, "Always Producer here.", example: "Producer", allowed: ["Producer"]));
+                    operation.Parameters.Add(Header(UserHeaders.OrganisationId, "The organisation the user acts for.",
+                        format: "uuid", example: "11111111-1111-1111-1111-111111111111"));
+                    break;
+                case UserType.Regulator:
+                    operation.Parameters ??= [];
+                    operation.Parameters.Add(Header(UserHeaders.UserId, "The regulator user the caller is acting for.",
+                        format: "uuid", example: "33333333-3333-3333-3333-333333333333"));
+                    operation.Parameters.Add(Header(UserHeaders.Type, "Always Regulator here.", example: "Regulator", allowed: ["Regulator"]));
+                    break;
             }
 
             return Task.CompletedTask;
@@ -143,12 +157,12 @@ internal static class SwaggerTransformers
     }
 
     private static OpenApiParameter Header(
-        string name, bool required, string description, string? format = null, string? example = null, string[]? allowed = null) =>
+        string name, string description, string? format = null, string? example = null, string[]? allowed = null) =>
         new()
         {
             Name = name,
             In = ParameterLocation.Header,
-            Required = required,
+            Required = true,
             Description = description,
             Example = example is null ? null : JsonValue.Create(example),
             Schema = new OpenApiSchema

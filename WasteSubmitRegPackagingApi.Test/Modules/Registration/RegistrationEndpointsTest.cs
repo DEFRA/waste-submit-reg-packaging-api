@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using WasteSubmitRegPackaging.Registration.Domain;
-using WasteSubmitRegPackaging.SharedKernel.Actors;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
+using WasteSubmitRegPackaging.SharedKernel.Users;
 
 namespace WasteSubmitRegPackagingApi.Test.Modules.Registration;
 
 /// <summary>
-/// Endpoint tests run the real host: authentication, built-in validation, the actor filter, handlers,
+/// Endpoint tests run the real host: authentication, built-in validation, the user filters, handlers,
 /// the domain and the ProblemDetails mapping. Only the repository is swapped for an in-memory one,
 /// so no database is needed.
 /// </summary>
@@ -22,7 +22,7 @@ public class RegistrationEndpointsTest
     [Fact]
     public async Task A_request_with_a_bad_shape_is_a_400_validation_problem()
     {
-        using var client = Client(TestActors.Producer);
+        using var client = Client(TestUsers.Producer);
 
         var response = await client.PostAsJsonAsync("/registrations", new { registrationYear = 1999 }, Ct);
 
@@ -35,16 +35,61 @@ public class RegistrationEndpointsTest
     }
 
     [Fact]
-    public async Task A_command_without_an_actor_is_a_400()
+    public async Task A_command_without_a_user_is_a_400()
     {
-        using var client = Client(actor: null);
+        using var client = ClientWithHeaders();
 
         var response = await client.PostAsJsonAsync(
             $"/regulator/registrations/{Guid.NewGuid()}/decisions", new { decision = "Grant" }, Ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var problem = await Json(response);
-        Assert.Equal("actor.missing", problem.RootElement.GetProperty("code").GetString());
+        Assert.Equal("user.missing", problem.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task A_producer_without_an_organisation_is_a_400()
+    {
+        using var client = ClientWithHeaders(new Dictionary<string, string>
+        {
+            [UserHeaders.UserId] = TestUsers.Producer.UserId.ToString(),
+            [UserHeaders.Type] = "Producer"
+        });
+
+        var response = await client.PostAsJsonAsync(
+            $"/registrations/{Guid.NewGuid()}/application-submission", new { }, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var problem = await Json(response);
+        Assert.Equal("user.missing", problem.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task A_producer_cannot_make_a_regulator_decision()
+    {
+        var submission = RegistrationTestData.SubmittedForApproval();
+        _repository.Seed(submission);
+        using var client = Client(TestUsers.Producer);
+
+        var response = await client.PostAsJsonAsync(
+            $"/regulator/registrations/{submission.Id}/decisions", new { decision = "Grant" }, Ct);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using var problem = await Json(response);
+        Assert.Equal("user.regulators_only", problem.RootElement.GetProperty("code").GetString());
+        Assert.Equal(0, _repository.Saves);
+    }
+
+    [Fact]
+    public async Task A_regulator_cannot_start_a_registration()
+    {
+        using var client = Client(TestUsers.Regulator);
+
+        var response = await client.PostAsJsonAsync("/registrations", ValidStartRequest(), Ct);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using var problem = await Json(response);
+        Assert.Equal("user.producers_only", problem.RootElement.GetProperty("code").GetString());
     }
 
     [Fact]
@@ -52,7 +97,7 @@ public class RegistrationEndpointsTest
     {
         var submission = RegistrationTestData.Started();
         _repository.Seed(submission);
-        using var client = Client(TestActors.Regulator);
+        using var client = Client(TestUsers.Regulator);
 
         var response = await client.PostAsJsonAsync(
             $"/regulator/registrations/{submission.Id}/decisions", new { decision = "Grant" }, Ct);
@@ -63,11 +108,11 @@ public class RegistrationEndpointsTest
     }
 
     [Fact]
-    public async Task A_grant_returns_the_new_status_and_reference_number()
+    public async Task A_grant_returns_the_new_status()
     {
         var submission = RegistrationTestData.SubmittedForApproval();
         _repository.Seed(submission);
-        using var client = Client(TestActors.Regulator);
+        using var client = Client(TestUsers.Regulator);
 
         var response = await client.PostAsJsonAsync(
             $"/regulator/registrations/{submission.Id}/decisions", new { decision = "Grant" }, Ct);
@@ -75,23 +120,15 @@ public class RegistrationEndpointsTest
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var body = await Json(response);
         Assert.Equal("Granted", body.RootElement.GetProperty("status").GetString());
-        Assert.StartsWith("R26EP", body.RootElement.GetProperty("registrationReferenceNumber").GetString());
         Assert.Equal(1, _repository.Saves);
     }
 
     [Fact]
     public async Task A_producer_starts_a_registration_and_gets_a_location()
     {
-        using var client = Client(TestActors.Producer);
+        using var client = Client(TestUsers.Producer);
 
-        var response = await client.PostAsJsonAsync("/registrations", new
-        {
-            organisationId = TestActors.ProducerOrganisationId,
-            registrationYear = 2026,
-            journey = "DirectLargeProducer",
-            nation = "GB-ENG",
-            applicationReferenceNumber = "PEPR00099999"
-        }, Ct);
+        var response = await client.PostAsJsonAsync("/registrations", ValidStartRequest(), Ct);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.StartsWith("/registrations/", response.Headers.Location?.OriginalString);
@@ -100,7 +137,7 @@ public class RegistrationEndpointsTest
     [Fact]
     public async Task Commands_need_the_write_scope()
     {
-        using var client = Client(TestActors.Regulator, withWriteScope: false);
+        using var client = Client(TestUsers.Regulator, withWriteScope: false);
 
         var response = await client.PostAsJsonAsync(
             $"/regulator/registrations/{Guid.NewGuid()}/decisions", new { decision = "Grant" }, Ct);
@@ -121,7 +158,29 @@ public class RegistrationEndpointsTest
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private HttpClient Client(Actor? actor, bool withWriteScope = true)
+    private static object ValidStartRequest() => new
+    {
+        organisationId = TestUsers.ProducerOrganisationId,
+        registrationYear = 2026,
+        journey = "DirectLargeProducer",
+        nation = "GB-ENG",
+        applicationReferenceNumber = "PEPR00099999"
+    };
+
+    private HttpClient Client(ProducerUser producer) => ClientWithHeaders(new Dictionary<string, string>
+    {
+        [UserHeaders.UserId] = producer.UserId.ToString(),
+        [UserHeaders.Type] = "Producer",
+        [UserHeaders.OrganisationId] = producer.OrganisationId.ToString()
+    });
+
+    private HttpClient Client(RegulatorUser regulator, bool withWriteScope = true) => ClientWithHeaders(new Dictionary<string, string>
+    {
+        [UserHeaders.UserId] = regulator.UserId.ToString(),
+        [UserHeaders.Type] = "Regulator"
+    }, withWriteScope);
+
+    private HttpClient ClientWithHeaders(Dictionary<string, string>? userHeaders = null, bool withWriteScope = true)
     {
         var settings = withWriteScope
             ? new Dictionary<string, string?> { [$"Acl:Clients:{AclTestFactory.ClientId}:Scopes:1"] = "write" }
@@ -136,13 +195,8 @@ public class RegistrationEndpointsTest
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = AclTestFactory.Basic(AclTestFactory.ClientId, AclTestFactory.Secret);
 
-        if (actor is not null)
-        {
-            client.DefaultRequestHeaders.Add(ActorHeaders.UserId, actor.UserId.ToString());
-            client.DefaultRequestHeaders.Add(ActorHeaders.Type, actor.Type.ToString());
-            if (actor.OrganisationId is { } organisationId)
-                client.DefaultRequestHeaders.Add(ActorHeaders.OrganisationId, organisationId.ToString());
-        }
+        foreach (var (name, value) in userHeaders ?? [])
+            client.DefaultRequestHeaders.Add(name, value);
 
         return client;
     }

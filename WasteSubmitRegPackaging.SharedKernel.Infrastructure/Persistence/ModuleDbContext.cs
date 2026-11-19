@@ -6,7 +6,8 @@ namespace WasteSubmitRegPackaging.SharedKernel.Infrastructure.Persistence;
 /// <summary>
 /// The base for each module's own DbContext. Every module has its own context and table prefix
 /// (<c>reg_</c>, <c>pkg_</c>), all in the one CDP database. A context only maps its own module's
-/// tables, so there are no joins across modules; modules talk through their Contracts.
+/// tables. Other modules are reached through their Contracts; reads that combine modules use SQL (see
+/// docs/project_architecture.md, "Questions that combine domains").
 ///
 /// EF never creates or migrates the schema here. Liquibase owns it (see <c>changelog/</c>), because
 /// the service runs as CDP's DML-only database user.

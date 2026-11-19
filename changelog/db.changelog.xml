@@ -4,13 +4,19 @@
   name (./changelog/db.changelog.xml) and XML format.
 
   Each module owns a folder and a table prefix:
-    changes/registration/  reg_*
-    changes/packaging/     pkg_*
+    changes/fees/                fee_*     fee tables and rates (shared)
+    changes/submission-periods/  period_*  registration and packaging submission periods (shared)
+    changes/registration/        reg_*     the registration workflow
+    changes/packaging/           pkg_*     the packaging workflow
+
+  Every module may read the shared tables (fee_*, period_*), join to them and hold foreign keys to them.
+  Only their own changesets change them.
 
   Rules:
-  - Include files explicitly, so the order is fixed and reviewable.
-  - Never edit a changeset that has been applied anywhere, because Liquibase checksums it. Add a new one.
-  - Changeset ids are <module>-<NNNN>-<what>, so two teams can't clash.
+  - Include files explicitly, so the order is fixed and reviewable. Shared data comes first.
+  - Never edit a changeset that has been applied anywhere, because Liquibase checksums it. Add a new one
+    (fix forward).
+  - Changeset ids are <module>-<NNNN>-<what>, so the teams can't clash.
   - Column names must match EF Core's snake_case naming of the C# properties.
 -->
 <databaseChangeLog
@@ -19,8 +25,9 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <include file="changes/registration/0001-registration-submission.xml" relativeToChangelogFile="true"/>
-    <include file="changes/registration/0002-nation-id.xml" relativeToChangelogFile="true"/>
-    <include file="changes/packaging/0001-packaging-submission.xml" relativeToChangelogFile="true"/>
+    <include file="changes/fees/0001-fees.xml" relativeToChangelogFile="true"/>
+    <include file="changes/submission-periods/0001-submission-periods.xml" relativeToChangelogFile="true"/>
+    <include file="changes/registration/0001-registration.xml" relativeToChangelogFile="true"/>
+    <include file="changes/packaging/0001-packaging.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

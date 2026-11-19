@@ -1,4 +1,4 @@
-using WasteSubmitRegPackaging.SharedKernel.Actors;
+using WasteSubmitRegPackaging.SharedKernel.Users;
 
 namespace WasteSubmitRegPackaging.Registration.Domain;
 
@@ -14,25 +14,39 @@ internal sealed class RegistrationSubmissionEvent
         // For EF Core.
     }
 
-    public RegistrationSubmissionEvent(
-        RegistrationEventType eventType, Actor actor, string? comments, DateTimeOffset? effectiveDate, DateTimeOffset occurredAt)
+    private RegistrationSubmissionEvent(
+        RegistrationEventType eventType,
+        Guid userId,
+        UserType userType,
+        string? comments,
+        DateTimeOffset? effectiveDate,
+        DateTimeOffset occurredAt)
     {
         Id = Guid.CreateVersion7();
         EventType = eventType;
-        ActorUserId = actor.UserId;
-        ActorType = actor.Type;
+        UserId = userId;
+        UserType = userType;
         Comments = comments;
         EffectiveDate = effectiveDate;
         OccurredAt = occurredAt;
     }
 
+    public static RegistrationSubmissionEvent ByProducer(
+        RegistrationEventType eventType, ProducerUser user, string? comments, DateTimeOffset? effectiveDate, DateTimeOffset occurredAt) =>
+        new(eventType, user.UserId, UserType.Producer, comments, effectiveDate, occurredAt);
+
+    public static RegistrationSubmissionEvent ByRegulator(
+        RegistrationEventType eventType, RegulatorUser user, string? comments, DateTimeOffset? effectiveDate, DateTimeOffset occurredAt) =>
+        new(eventType, user.UserId, UserType.Regulator, comments, effectiveDate, occurredAt);
+
     public Guid Id { get; private init; }
 
     public RegistrationEventType EventType { get; private init; }
 
-    public Guid ActorUserId { get; private init; }
+    /// <summary>Who did it.</summary>
+    public Guid UserId { get; private init; }
 
-    public ActorType ActorType { get; private init; }
+    public UserType UserType { get; private init; }
 
     /// <summary>The producer's additional information, or the regulator's decision comments.</summary>
     public string? Comments { get; private init; }

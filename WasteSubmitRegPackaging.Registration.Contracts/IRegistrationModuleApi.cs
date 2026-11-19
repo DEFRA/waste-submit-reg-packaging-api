@@ -29,5 +29,4 @@ public enum RegistrationState
 public sealed record RegistrationSummary(
     Guid RegistrationSubmissionId,
     int RegistrationYear,
-    RegistrationState State,
-    string? RegistrationReferenceNumber);
+    RegistrationState State);

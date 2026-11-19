@@ -1,0 +1,39 @@
+name: Publish DB Schema
+
+# Publishes ./changelog to CDP on demand, so it can be applied from the Portal ("Apply Changelog").
+# publish.yml already does this on every push to main, but only when the changelog has changed. Use this
+# for the first publish, or to publish a schema change separately from a service build.
+# From CDP's guide: how-to/relational-databases.md, "Publishing changesets".
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Changeset version (blank: use the latest version tag)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-west-2
+  AWS_ACCOUNT_ID: "094954420758"
+
+jobs:
+  publish-db-schema:
+    name: CDP-publish-db-schema
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Publish Database Schema
+        uses: DEFRA/cdp-build-action/publish-db-migrations@main
+        with:
+          path: ./changelog
+          force: "true"
+          version: ${{ inputs.version }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

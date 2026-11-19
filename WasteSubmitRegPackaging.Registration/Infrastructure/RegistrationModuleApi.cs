@@ -14,12 +14,12 @@ internal sealed class RegistrationModuleApi(RegistrationDbContext dbContext) : I
             .AsNoTracking()
             .Where(s => s.OrganisationId == organisationId && s.RegistrationYear == registrationYear)
             .OrderByDescending(s => s.CreatedAt)
-            .Select(s => new { s.Id, s.RegistrationYear, s.Status, s.RegistrationReferenceNumber })
+            .Select(s => new { s.Id, s.RegistrationYear, s.Status })
             .FirstOrDefaultAsync(cancellationToken);
 
         return latest is null
             ? null
-            : new RegistrationSummary(latest.Id.Value, latest.RegistrationYear, ToContract(latest.Status), latest.RegistrationReferenceNumber);
+            : new RegistrationSummary(latest.Id.Value, latest.RegistrationYear, ToContract(latest.Status));
     }
 
     private static RegistrationState ToContract(RegistrationStatus status) => status switch

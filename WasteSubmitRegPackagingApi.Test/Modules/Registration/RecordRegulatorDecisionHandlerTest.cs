@@ -6,8 +6,9 @@ using WasteSubmitRegPackaging.SharedKernel.Results;
 namespace WasteSubmitRegPackagingApi.Test.Modules.Registration;
 
 /// <summary>
-/// Handler tests: application rules (who, required inputs, not found) and that a change is saved.
-/// The repository is mocked; the domain is real.
+/// Handler tests: application rules (required inputs, not found) and that a change is saved.
+/// The repository is mocked; the domain is real. "Only a regulator can decide" needs no test here: the
+/// command takes a RegulatorUser, so a producer can't be passed. The endpoint test covers the 403.
 /// </summary>
 public class RecordRegulatorDecisionHandlerTest
 {
@@ -18,16 +19,7 @@ public class RecordRegulatorDecisionHandlerTest
     {
         _repository.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Result.Success());
         _handler = new RecordRegulatorDecisionHandler(
-            _repository, new FixedReferenceNumberGenerator(), new FixedTimeProvider(RegistrationTestData.Now));
-    }
-
-    [Fact]
-    public async Task Only_a_regulator_can_decide()
-    {
-        var result = await _handler.HandleAsync(Command(RegulatorDecision.Grant) with { Actor = TestActors.Producer }, CancellationToken.None);
-
-        Assert.Equal(ErrorType.Forbidden, result.Error?.Type);
-        await _repository.DidNotReceive().GetAsync(Arg.Any<RegistrationSubmissionId>(), Arg.Any<CancellationToken>());
+            _repository, new FixedTimeProvider(RegistrationTestData.Now));
     }
 
     [Fact]
@@ -49,7 +41,7 @@ public class RecordRegulatorDecisionHandlerTest
     }
 
     [Fact]
-    public async Task A_grant_is_saved_and_returns_the_reference_number()
+    public async Task A_grant_is_saved_and_returns_the_new_status()
     {
         var submission = RegistrationTestData.SubmittedForApproval();
         _repository.GetAsync(submission.Id, Arg.Any<CancellationToken>()).Returns(submission);
@@ -57,7 +49,7 @@ public class RecordRegulatorDecisionHandlerTest
         var result = await _handler.HandleAsync(Command(RegulatorDecision.Grant, id: submission.Id), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(new RecordRegulatorDecisionResult(RegistrationStatus.Granted, "R26EP00000001"), result.Value);
+        Assert.Equal(new RecordRegulatorDecisionResult(RegistrationStatus.Granted), result.Value);
         await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -75,5 +67,5 @@ public class RecordRegulatorDecisionHandlerTest
 
     private static RecordRegulatorDecisionCommand Command(
         RegulatorDecision decision, string? comments = null, RegistrationSubmissionId? id = null) =>
-        new(TestActors.Regulator, id ?? RegistrationSubmissionId.New(), decision, comments, null);
+        new(TestUsers.Regulator, id ?? RegistrationSubmissionId.New(), decision, comments, null);
 }

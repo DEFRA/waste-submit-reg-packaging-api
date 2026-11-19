@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using WasteSubmitRegPackaging.Packaging.Application.Commands.CreatePackagingSubmission;
 using WasteSubmitRegPackaging.Packaging.Application.Queries.GetPackagingSubmission;
 using WasteSubmitRegPackaging.Packaging.Domain;
-using WasteSubmitRegPackaging.SharedKernel.Actors;
+using WasteSubmitRegPackaging.SharedKernel.Users;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
 using WasteSubmitRegPackaging.SharedKernel.Messaging;
 
@@ -25,19 +25,24 @@ public sealed class CreatePackagingSubmissionRequest
 
 internal sealed record CreatePackagingSubmissionResponse(Guid PackagingSubmissionId);
 
+/// <summary>
+/// <b>SAMPLE endpoints.</b> They show the structure (a command, a query, the user headers and the Result mapping) and
+/// will be replaced as the packaging workflow is developed. They are marked "(sample)" and left out of the v1 OpenAPI
+/// document. The Manage Obligations endpoints under <c>/packaging/{packagingYear}</c> are real and aren't marked.
+/// </summary>
 internal static class PackagingSubmissionEndpoints
 {
     public static void Map(IEndpointRouteBuilder app)
     {
         // A separate route and tag from the existing /packaging/{year} obligations endpoints, which still
         // live in the host and should move into this module later.
-        var group = app.MapGroup("/packaging-submissions").WithTags("Packaging submissions");
+        var group = app.MapGroup("/packaging/submissions").AsSample("Packaging submissions", "packaging submission");
 
         group.MapPost("/", CreatePackagingSubmission)
             .WithName("CreatePackagingSubmission")
             .WithSummary("Start a packaging data submission (sample)")
             .RequireAuthorization(ModulePolicies.Write)
-            .RequireActor();
+            .RequireProducer();
 
         group.MapGet("/{packagingSubmissionId:guid}", GetPackagingSubmission)
             .WithName("GetPackagingSubmission")
@@ -47,16 +52,16 @@ internal static class PackagingSubmissionEndpoints
 
     private static async Task<Results<Created<CreatePackagingSubmissionResponse>, ProblemHttpResult>> CreatePackagingSubmission(
         CreatePackagingSubmissionRequest request,
-        [FromServices] IActorContext actorContext,
+        [FromServices] ICurrentUser currentUser,
         [FromServices] ICommandHandler<CreatePackagingSubmissionCommand, PackagingSubmissionId> handler,
         CancellationToken cancellationToken)
     {
         var result = await handler.HandleAsync(
-            new CreatePackagingSubmissionCommand(actorContext.Current!, request.OrganisationId!.Value, request.PackagingYear!.Value),
+            new CreatePackagingSubmissionCommand(currentUser.Producer!, request.OrganisationId!.Value, request.PackagingYear!.Value),
             cancellationToken);
 
         return result.IsSuccess
-            ? TypedResults.Created($"/packaging-submissions/{result.Value}", new CreatePackagingSubmissionResponse(result.Value.Value))
+            ? TypedResults.Created($"/packaging/submissions/{result.Value}", new CreatePackagingSubmissionResponse(result.Value.Value))
             : result.Error.ToProblem();
     }
 

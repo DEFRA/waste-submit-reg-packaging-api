@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
-using WasteSubmitRegPackaging.SharedKernel.Actors;
+using WasteSubmitRegPackaging.SharedKernel.Users;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Outbox;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Persistence;
@@ -21,7 +21,7 @@ public static class ModuleServiceCollectionExtensions
     {
         services.TryAddSingleton(TimeProvider.System);
         services.AddHttpContextAccessor();
-        services.TryAddScoped<IActorContext, HeaderActorContext>();
+        services.TryAddScoped<ICurrentUser, HeaderCurrentUser>();
         services.TryAddSingleton<DomainEventsToOutboxInterceptor>();
         services.TryAddScoped<IOutboxMessagePublisher, LoggingOutboxMessagePublisher>();
         services.AddOptions<OutboxOptions>().Bind(configuration.GetSection("Outbox"));
@@ -44,6 +44,20 @@ public static class ModuleServiceCollectionExtensions
             .AddInterceptors(serviceProvider.GetRequiredService<DomainEventsToOutboxInterceptor>()));
 
         services.AddHostedService<OutboxDispatcher<TContext>>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers a read-only module's DbContext (see <see cref="ReadOnlyDbContext"/>) on the host's
+    /// <see cref="NpgsqlDataSource"/>, with the same naming convention. No outbox dispatcher.
+    /// </summary>
+    public static IServiceCollection AddReadOnlyModuleDbContext<TContext>(this IServiceCollection services)
+        where TContext : ReadOnlyDbContext
+    {
+        services.AddDbContext<TContext>((serviceProvider, options) => options
+            .UseNpgsql(serviceProvider.GetRequiredService<NpgsqlDataSource>())
+            .UseSnakeCaseNamingConvention());
 
         return services;
     }

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Packaging module (pkg_*). SAMPLE schema for the skeleton; the packaging team owns the real one. -->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="packaging-0001-packaging-submission" author="waste-submit-reg">
+        <sql>
+            CREATE TABLE pkg_packaging_submission (
+                id                         uuid        NOT NULL CONSTRAINT pk_pkg_packaging_submission PRIMARY KEY,
+                organisation_id            uuid        NOT NULL,
+                packaging_year             integer     NOT NULL,
+                -- The registration year this data is reported before: packaging_year + 1, the same rule as
+                -- period_packaging_submission_period.registration_year. A year, not a registration id: producers
+                -- report packaging data before they register.
+                registration_year          integer     NOT NULL,
+                status                     varchar(20) NOT NULL CONSTRAINT ck_pkg_packaging_submission_status
+                    CHECK (status IN ('Draft', 'Submitted')),
+                created_by_user_id         uuid        NOT NULL,
+                created_at                 timestamptz NOT NULL
+            );
+
+            CREATE INDEX ix_pkg_packaging_submission_organisation_year
+                ON pkg_packaging_submission (organisation_id, packaging_year);
+        </sql>
+    </changeSet>
+
+    <changeSet id="packaging-0002-outbox-message" author="waste-submit-reg">
+        <sql>
+            CREATE TABLE pkg_outbox_message (
+                id           uuid          NOT NULL CONSTRAINT pk_pkg_outbox_message PRIMARY KEY,
+                type         varchar(200)  NOT NULL,
+                payload      jsonb         NOT NULL,
+                occurred_at  timestamptz   NOT NULL,
+                processed_at timestamptz,
+                attempts     integer       NOT NULL DEFAULT 0,
+                error        varchar(2000)
+            );
+
+            CREATE INDEX ix_pkg_outbox_message_unprocessed ON pkg_outbox_message (occurred_at) WHERE processed_at IS NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

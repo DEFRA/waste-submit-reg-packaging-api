@@ -21,7 +21,6 @@ internal sealed record RegistrationDecisionRecorded(
     Guid RegistrationSubmissionId,
     RegulatorDecision Decision,
     RegistrationStatus Status,
-    string? RegistrationReferenceNumber,
     Guid RegulatorUserId,
     string? Comments,
     DateTimeOffset OccurredAt) : IDomainEvent;

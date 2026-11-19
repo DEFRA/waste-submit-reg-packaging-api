@@ -8,13 +8,17 @@ using WasteSubmitRegPackaging.Registration.Application.Commands.StartRegistratio
 using WasteSubmitRegPackaging.Registration.Application.Commands.SubmitRegistrationApplication;
 using WasteSubmitRegPackaging.Registration.Application.Queries.GetRegistrationSubmission;
 using WasteSubmitRegPackaging.Registration.Domain;
-using WasteSubmitRegPackaging.SharedKernel.Actors;
+using WasteSubmitRegPackaging.SharedKernel.Users;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
 using WasteSubmitRegPackaging.SharedKernel.Messaging;
 
 namespace WasteSubmitRegPackaging.Registration.Endpoints;
 
 /// <summary>
+/// <b>SAMPLE endpoints.</b> They show the structure (producer and regulator routes, commands, queries, the user
+/// headers and the Result mapping) and will be replaced as the registration work is developed. They are marked
+/// "(sample)" and left out of the v1 OpenAPI document that frontends generate clients from.
+///
 /// Thin endpoints: bind the request, turn it into a command or query, call the handler, and map the
 /// <c>Result</c>. No business logic here.
 ///
@@ -25,48 +29,48 @@ internal static class RegistrationEndpoints
 {
     public static void Map(IEndpointRouteBuilder app)
     {
-        var producer = app.MapGroup("/registrations").WithTags("Registration");
+        var producer = app.MapGroup("/registrations").AsSample("Registration", "registration");
 
         producer.MapPost("/", StartRegistration)
             .WithName("StartRegistration")
-            .WithSummary("Start a registration for an organisation and year")
+            .WithSummary("Start a registration for an organisation and year (sample)")
             .RequireAuthorization(ModulePolicies.Write)
-            .RequireActor();
+            .RequireProducer();
 
         producer.MapGet("/{registrationSubmissionId:guid}", GetRegistrationSubmission)
             .WithName("GetRegistrationSubmission")
-            .WithSummary("A registration, with its status, history and the actions available")
+            .WithSummary("A registration, with its status, history and the actions available (sample)")
             .RequireAuthorization(ModulePolicies.Read);
 
         producer.MapPost("/{registrationSubmissionId:guid}/application-submission", SubmitRegistrationApplication)
             .WithName("SubmitRegistrationApplication")
-            .WithSummary("Submit the application to the regulator")
+            .WithSummary("Submit the application to the regulator (sample)")
             .RequireAuthorization(ModulePolicies.Write)
-            .RequireActor();
+            .RequireProducer();
 
-        var regulator = app.MapGroup("/regulator/registrations").WithTags("Regulator");
+        var regulator = app.MapGroup("/regulator/registrations").AsSample("Regulator", "registration");
 
         regulator.MapGet("/{registrationSubmissionId:guid}", GetRegistrationSubmission)
             .WithName("GetRegulatorRegistrationSubmission")
-            .WithSummary("A registration, as the regulator sees it")
+            .WithSummary("A registration, as the regulator sees it (sample)")
             .RequireAuthorization(ModulePolicies.Read);
 
         regulator.MapPost("/{registrationSubmissionId:guid}/decisions", RecordRegulatorDecision)
             .WithName("RecordRegulatorDecision")
-            .WithSummary("Grant, refuse, query or cancel a registration")
+            .WithSummary("Grant, refuse, query or cancel a registration (sample)")
             .RequireAuthorization(ModulePolicies.Write)
-            .RequireActor();
+            .RequireRegulator();
     }
 
     private static async Task<Results<Created<StartRegistrationResponse>, ProblemHttpResult>> StartRegistration(
         StartRegistrationRequest request,
-        [FromServices] IActorContext actorContext,
+        [FromServices] ICurrentUser currentUser,
         [FromServices] ICommandHandler<StartRegistrationCommand, RegistrationSubmissionId> handler,
         CancellationToken cancellationToken)
     {
         // The Required checks have already run, so the ! operators are safe.
         var command = new StartRegistrationCommand(
-            actorContext.Current!,
+            currentUser.Producer!,
             request.OrganisationId!.Value,
             request.ComplianceSchemeId,
             request.RegistrationYear!.Value,
@@ -95,12 +99,12 @@ internal static class RegistrationEndpoints
     private static async Task<Results<NoContent, ProblemHttpResult>> SubmitRegistrationApplication(
         Guid registrationSubmissionId,
         SubmitRegistrationApplicationRequest request,
-        [FromServices] IActorContext actorContext,
+        [FromServices] ICurrentUser currentUser,
         [FromServices] ICommandHandler<SubmitRegistrationApplicationCommand, Unit> handler,
         CancellationToken cancellationToken)
     {
         var command = new SubmitRegistrationApplicationCommand(
-            actorContext.Current!, new RegistrationSubmissionId(registrationSubmissionId), request.Comments);
+            currentUser.Producer!, new RegistrationSubmissionId(registrationSubmissionId), request.Comments);
 
         var result = await handler.HandleAsync(command, cancellationToken);
 
@@ -110,12 +114,12 @@ internal static class RegistrationEndpoints
     private static async Task<Results<Ok<RecordRegulatorDecisionResult>, ProblemHttpResult>> RecordRegulatorDecision(
         Guid registrationSubmissionId,
         RecordRegulatorDecisionRequest request,
-        [FromServices] IActorContext actorContext,
+        [FromServices] ICurrentUser currentUser,
         [FromServices] ICommandHandler<RecordRegulatorDecisionCommand, RecordRegulatorDecisionResult> handler,
         CancellationToken cancellationToken)
     {
         var command = new RecordRegulatorDecisionCommand(
-            actorContext.Current!,
+            currentUser.Regulator!,
             new RegistrationSubmissionId(registrationSubmissionId),
             request.Decision!.Value,
             request.Comments,
