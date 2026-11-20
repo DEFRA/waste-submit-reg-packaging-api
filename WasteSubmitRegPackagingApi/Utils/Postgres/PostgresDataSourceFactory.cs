@@ -19,7 +19,9 @@ public static class PostgresDataSourceFactory
             Database = config.Database,
             Username = config.Username,
             Password = config.UseIamAuthentication ? null : config.Password,
-            SslMode = config.SslMode
+            SslMode = config.SslMode,
+            Timeout = config.ConnectTimeoutSeconds,
+            CommandTimeout = config.CommandTimeoutSeconds
         }.ConnectionString;
 
         var builder = new NpgsqlDataSourceBuilder(connectionString);

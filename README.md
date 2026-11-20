@@ -120,10 +120,23 @@ Environment variables use `__` for nesting, so `Postgres__Host` sets `Postgres:H
 | `Postgres__UseIamAuthentication` | Sign in with an IAM token instead of a password | `true` |
 | `Postgres__Password` | Local databases only. Ignored when IAM is on | Not set |
 | `Postgres__SslMode` | TLS mode | `VerifyFull` |
+| `Postgres__ConnectTimeoutSeconds`, `Postgres__CommandTimeoutSeconds` | How long to wait to open a connection, and how long one query may run | `15` and `30` (Npgsql's defaults), from `appsettings.json` |
 | `Swagger__Enabled` | Serve Swagger and the OpenAPI document | `true` in dev and test only |
 | `CommonDataApi__BaseUrl` | epr-common-data-api's base address. **Required**: the service will not start without it | Set per environment in cdp-app-config, once the cross-platform networking (Squid ACL, auth) is in place |
+| `CommonDataApi__TotalRequestTimeout__Timeout`, `CommonDataApi__AttemptTimeout__Timeout`, `CommonDataApi__Retry__*` | Resilience for calls to epr-common-data-api, the same pipeline Manage Obligations uses: an overall timeout, retries, and a timeout per attempt | `00:01:00` overall, `00:00:20` per attempt, 2 retries with exponential backoff, from `appsettings.json` |
 
 A change in cdp-app-config does nothing until the service is redeployed from the CDP Portal.
+
+### Timeouts
+
+Every call out of the service has a timeout, as the CDP production readiness review (PRR) requires. When one runs out,
+the API answers `504 Gateway Timeout` with a problem response rather than holding the caller's request open, and the
+request log records the 504. Other unhandled errors stay `500`. `CommonDataApiTimeoutTest` and `PostgresTimeoutTest`
+prove the timeouts fire.
+
+The resilience pipeline's timeouts cover the wait for epr-common-data-api's response headers. `HttpClient.Timeout` is
+set to the same overall timeout, so a response whose body never finishes is cut off too. Manage Obligations leaves it
+infinite, which leaves that case without a timeout.
 
 ## Postgres
 
