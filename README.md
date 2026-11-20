@@ -172,7 +172,7 @@ Every request is recorded as three CloudWatch custom metrics. The custom Grafana
 - **Tags:**
   - `Service`
   - `RequestPath`: the route pattern, or `unknown` for unmatched URLs
-  - `HttpMethod`
+  - `HttpMethod`: one of GET, HEAD, POST, PUT, PATCH, DELETE and OPTIONS, or `OTHER`
   - `StatusCode`: the status the caller got. A request that throws is recorded as 500, or as the status already sent. A caller that gives up first is recorded as 499 and isn't a fault.
   - `ExceptionType`: on `RequestFaulted` only
 - **How they reach CloudWatch:** the metrics are written as AWS Embedded Metric Format (EMF) log lines.
