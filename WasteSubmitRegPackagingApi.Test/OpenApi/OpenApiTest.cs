@@ -67,7 +67,24 @@ public class OpenApiTest
 
         Assert.DoesNotContain(paths, IsSamplePath);
         Assert.Contains("/submission-periods/packaging/for-submitter-type", paths);
-        Assert.Contains("/fees/packaging-resubmission", paths);
+    }
+
+    [Fact]
+    public async Task The_fee_and_registration_submission_periods_endpoints_are_unpublished()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        using var v1 = JsonDocument.Parse(await client.GetStringAsync(V1Document, cancellationToken));
+        using var unpublished = JsonDocument.Parse(await client.GetStringAsync(UnpublishedDocument, cancellationToken));
+        string[] endpoints = ["/fees/packaging-resubmission", "/submission-periods/registration"];
+
+        Assert.All(endpoints, path =>
+        {
+            Assert.False(v1.RootElement.GetProperty("paths").TryGetProperty(path, out _));
+            Assert.True(unpublished.RootElement.GetProperty("paths").TryGetProperty(path, out _));
+        });
     }
 
     [Fact]

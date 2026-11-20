@@ -32,7 +32,8 @@ internal static class FeesEndpoints
             .WithDescription(
                 "Gives the same results as epr-payment-service's producer and compliance scheme resubmission-fee endpoints. " +
                 "Amounts are in pence. The request will change to take a packaging submission id.")
-            .ProducesValidationProblem();
+            .ProducesValidationProblem()
+            .Unpublished();
     }
 
     private static async Task<Results<Ok<ResubmissionFee>, ProblemHttpResult>> CalculatePackagingResubmissionFee(

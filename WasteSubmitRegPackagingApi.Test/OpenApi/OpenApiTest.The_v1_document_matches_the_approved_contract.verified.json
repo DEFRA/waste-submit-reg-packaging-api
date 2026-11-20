@@ -122,83 +122,6 @@
         }
       }
     },
-    "/fees/packaging-resubmission": {
-      "post": {
-        "tags": [
-          "Fees"
-        ],
-        "summary": "Work out a packaging resubmission fee (inputs pencilled in)",
-        "description": "Gives the same results as epr-payment-service's producer and compliance scheme resubmission-fee endpoints. Amounts are in pence. The request will change to take a packaging submission id.",
-        "operationId": "CalculatePackagingResubmissionFee",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CalculatePackagingResubmissionFeeRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResubmissionFee"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/submission-periods/registration": {
-      "get": {
-        "tags": [
-          "Submission periods"
-        ],
-        "summary": "The registration submission periods, one per window type and registration year",
-        "description": "The same rows and ids as epr-payment-service's [Lookup].[SubmissionPeriod]. Dates are midnight UTC.",
-        "operationId": "GetRegistrationSubmissionPeriods",
-        "parameters": [
-          {
-            "name": "registrationYear",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RegistrationSubmissionPeriod"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/submission-periods/packaging": {
       "get": {
         "tags": [
@@ -381,46 +304,6 @@
           }
         }
       },
-      "CalculatePackagingResubmissionFeeRequest": {
-        "required": [
-          "submitter",
-          "regulator",
-          "resubmissionDate"
-        ],
-        "type": "object",
-        "properties": {
-          "submitter": {
-            "$ref": "#/components/schemas/Submitter"
-          },
-          "regulator": {
-            "$ref": "#/components/schemas/RegulatorNation"
-          },
-          "resubmissionDate": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "memberCount": {
-            "maximum": 100000,
-            "minimum": 0,
-            "type": [
-              "null",
-              "integer"
-            ],
-            "format": "int32"
-          },
-          "previousPayments": {
-            "maximum": 1000000000,
-            "minimum": 0,
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "null",
-              "number",
-              "string"
-            ],
-            "format": "double"
-          }
-        }
-      },
       "DescribeResponse": {
         "required": [
           "service"
@@ -438,50 +321,6 @@
           "Left"
         ],
         "type": "string"
-      },
-      "FeeLine": {
-        "required": [
-          "feeRateId",
-          "feeGroupId",
-          "description",
-          "unitPrice",
-          "quantity",
-          "amount"
-        ],
-        "type": "object",
-        "properties": {
-          "feeRateId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "feeGroupId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "description": {
-            "type": "string"
-          },
-          "unitPrice": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "double"
-          },
-          "quantity": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "amount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "double"
-          }
-        }
       },
       "HttpValidationProblemDetails": {
         "type": "object",
@@ -785,107 +624,9 @@
         ],
         "type": "string"
       },
-      "RegistrationSubmissionPeriod": {
-        "required": [
-          "id",
-          "windowType",
-          "registrationYear",
-          "openingDate",
-          "deadlineDate",
-          "closingDate"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "windowType": {
-            "type": "string"
-          },
-          "registrationYear": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "openingDate": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "deadlineDate": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "closingDate": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "RegulatorNation": {
-        "enum": [
-          "GB-ENG",
-          "GB-SCT",
-          "GB-WLS",
-          "GB-NIR"
-        ],
-        "type": "string"
-      },
-      "ResubmissionFee": {
-        "required": [
-          "lines",
-          "totalResubmissionFee",
-          "previousPayments",
-          "outstandingPayment",
-          "memberCount"
-        ],
-        "type": "object",
-        "properties": {
-          "lines": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FeeLine"
-            }
-          },
-          "totalResubmissionFee": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "double"
-          },
-          "previousPayments": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "double"
-          },
-          "outstandingPayment": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "double"
-          },
-          "memberCount": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
       "SubmissionPeriodsSubmitterType": {
         "enum": [
           "DirectProducer",
-          "ComplianceScheme"
-        ],
-        "type": "string"
-      },
-      "Submitter": {
-        "enum": [
-          "Producer",
           "ComplianceScheme"
         ],
         "type": "string"
@@ -905,9 +646,6 @@
     },
     {
       "name": "Packaging"
-    },
-    {
-      "name": "Fees"
     },
     {
       "name": "Submission periods"

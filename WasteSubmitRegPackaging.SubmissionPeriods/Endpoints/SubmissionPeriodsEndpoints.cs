@@ -26,7 +26,8 @@ internal static class SubmissionPeriodsEndpoints
         group.MapGet("/registration", GetRegistrationSubmissionPeriods)
             .WithName("GetRegistrationSubmissionPeriods")
             .WithSummary("The registration submission periods, one per window type and registration year")
-            .WithDescription("The same rows and ids as epr-payment-service's [Lookup].[SubmissionPeriod]. Dates are midnight UTC.");
+            .WithDescription("The same rows and ids as epr-payment-service's [Lookup].[SubmissionPeriod]. Dates are midnight UTC.")
+            .Unpublished();
 
         group.MapGet("/packaging", GetPackagingSubmissionPeriods)
             .WithName("GetPackagingSubmissionPeriods")
