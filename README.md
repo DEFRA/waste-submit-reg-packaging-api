@@ -180,13 +180,13 @@ Every request is recorded as three CloudWatch custom metrics. The custom Grafana
 |---|---|---|
 | `RequestReceived` | count | once per request |
 | `RequestDuration` | milliseconds | once per request |
-| `RequestFaulted` | count | when a request throws an unhandled exception |
+| `RequestFaulted` | count | when a request throws, including exceptions the error handler turns into a problem response |
 
 - **Tags:**
   - `Service`
   - `RequestPath`: the route pattern, or `unknown` for unmatched URLs
   - `HttpMethod`: one of GET, HEAD, POST, PUT, PATCH, DELETE and OPTIONS, or `OTHER`
-  - `StatusCode`: the status the caller got. A request that throws is recorded as 500, or as the status already sent. A caller that gives up first is recorded as 499 and isn't a fault.
+  - `StatusCode`: the status the caller got, such as 500 for an error or 504 for a timeout (see [Timeouts](#timeouts)). A caller that gives up first is recorded as 499 and isn't a fault.
   - `ExceptionType`: on `RequestFaulted` only
 - **How they reach CloudWatch:** the metrics are written as AWS Embedded Metric Format (EMF) log lines.
 - **Settings:**

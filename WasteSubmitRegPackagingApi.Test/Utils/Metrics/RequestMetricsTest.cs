@@ -4,6 +4,7 @@ using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.Metrics.Testing;
+using Polly.Timeout;
 using WasteSubmitRegPackagingApi.Obligations.Services;
 
 namespace WasteSubmitRegPackagingApi.Test.Utils.Metrics;
@@ -96,13 +97,7 @@ public class RequestMetricsTest
     public async Task An_unhandled_exception_is_a_fault_with_the_status_the_caller_got()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new AclTestFactory(new Dictionary<string, string?>
-        {
-            ["CommonDataApi:BaseUrl"] = "https://common-data-api.test"
-        }).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
-            services
-                .AddHttpClient<IApprovedSubmissionsProvider, CommonDataApiApprovedSubmissionsProvider>()
-                .ConfigurePrimaryHttpMessageHandler(() => new UnreachableCommonDataApi())));
+        await using var factory = AppWith(new UnreachableCommonDataApi());
         using var received = Collect<long>(factory, "RequestReceived");
         using var faulted = Collect<long>(factory, "RequestFaulted");
         using var client = CreateAuthenticatedClient(factory);
@@ -116,8 +111,51 @@ public class RequestMetricsTest
         var fault = Assert.Single(faulted.GetMeasurementSnapshot());
         Assert.Equal(500, fault.Tags["StatusCode"]);
         Assert.Equal(nameof(HttpRequestException), fault.Tags["ExceptionType"]);
-        // The response status is still 200 while the exception unwinds; the caller gets a 500.
         Assert.Equal(500, Assert.Single(received.GetMeasurementSnapshot()).Tags["StatusCode"]);
+    }
+
+    [Fact]
+    public async Task A_timeout_is_a_fault_recorded_as_504()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // Three 0.2 second attempts all time out well inside the 1 second total. The HttpClient backstop is also
+        // 1 second, so a total that ran out instead would race it and throw a different exception.
+        await using var factory = AppWith(new HangingCommonDataApi(), new Dictionary<string, string?>
+        {
+            ["CommonDataApi:TotalRequestTimeout:Timeout"] = "00:00:01",
+            ["CommonDataApi:AttemptTimeout:Timeout"] = "00:00:00.2",
+            ["CommonDataApi:Retry:Delay"] = "00:00:00"
+        });
+        using var received = Collect<long>(factory, "RequestReceived");
+        using var faulted = Collect<long>(factory, "RequestFaulted");
+        using var client = CreateAuthenticatedClient(factory);
+
+        var response = await client.GetAsync(Endpoint, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.GatewayTimeout, response.StatusCode);
+        await faulted.WaitForMeasurementsAsync(1, s_wait);
+        await received.WaitForMeasurementsAsync(1, s_wait);
+
+        var fault = Assert.Single(faulted.GetMeasurementSnapshot());
+        Assert.Equal(504, fault.Tags["StatusCode"]);
+        Assert.Equal(nameof(TimeoutRejectedException), fault.Tags["ExceptionType"]);
+        Assert.Equal(EndpointPattern, fault.Tags["RequestPath"]);
+        Assert.Equal(504, Assert.Single(received.GetMeasurementSnapshot()).Tags["StatusCode"]);
+    }
+
+    private static WebApplicationFactory<Program> AppWith(
+        HttpMessageHandler commonDataApi,
+        IReadOnlyDictionary<string, string?>? extraSettings = null)
+    {
+        var settings = new Dictionary<string, string?>(extraSettings ?? new Dictionary<string, string?>())
+        {
+            ["CommonDataApi:BaseUrl"] = "https://common-data-api.test"
+        };
+
+        return new AclTestFactory(settings).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            services
+                .AddHttpClient<IApprovedSubmissionsProvider, CommonDataApiApprovedSubmissionsProvider>()
+                .ConfigurePrimaryHttpMessageHandler(() => commonDataApi)));
     }
 
     [Fact]
@@ -125,13 +163,7 @@ public class RequestMetricsTest
     {
         // Manage Obligations abandons calls that take too long. Nothing failed here, and the caller got no response.
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var factory = new AclTestFactory(new Dictionary<string, string?>
-        {
-            ["CommonDataApi:BaseUrl"] = "https://common-data-api.test"
-        }).WithWebHostBuilder(builder => builder.ConfigureServices(services =>
-            services
-                .AddHttpClient<IApprovedSubmissionsProvider, CommonDataApiApprovedSubmissionsProvider>()
-                .ConfigurePrimaryHttpMessageHandler(() => new HangingCommonDataApi())));
+        await using var factory = AppWith(new HangingCommonDataApi());
         using var received = Collect<long>(factory, "RequestReceived");
         using var faulted = Collect<long>(factory, "RequestFaulted");
         using var client = CreateAuthenticatedClient(factory);

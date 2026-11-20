@@ -1,6 +1,11 @@
+using Microsoft.AspNetCore.Diagnostics;
+
 namespace WasteSubmitRegPackagingApi.Utils.Metrics;
 
-/// <summary>Records every request's route, method, status and duration, and any unhandled exception.</summary>
+/// <summary>
+/// Records every request's route, method, status and duration, and any exception, whether the error handler dealt
+/// with it or not. It sits outside the error handler, so it sees the status the caller gets.
+/// </summary>
 public class MetricsMiddleware(IRequestMetrics requestMetrics) : IMiddleware
 {
     // Unmatched URLs share one value, so scanners can't create a metric series per path they try.
@@ -29,6 +34,11 @@ public class MetricsMiddleware(IRequestMetrics requestMetrics) : IMiddleware
         try
         {
             await next(context);
+
+            // The error handler inside this middleware turns exceptions into problem responses (500, or 504 for a
+            // timeout), so they arrive here as handled. Its record of the exception still makes them faults.
+            if (context.Features.Get<IExceptionHandlerFeature>() is { } handled)
+                requestMetrics.RequestFaulted(path, method, context.Response.StatusCode, handled.Error);
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
