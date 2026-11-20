@@ -159,6 +159,29 @@ should not do that.
 
 Neither health check ever requires authentication, whatever `Authorization` header is sent.
 
+## Metrics
+
+Every request is recorded as three CloudWatch custom metrics. The custom Grafana dashboard, `waste-submit-reg-packaging-api (custom)`, charts them. The names and tags match Manage Obligations (`waste-obligations`), so its dashboard panels work here too.
+
+| Metric | Type | Recorded |
+|---|---|---|
+| `RequestReceived` | count | once per request |
+| `RequestDuration` | milliseconds | once per request |
+| `RequestFaulted` | count | when a request throws an unhandled exception |
+
+- **Tags:**
+  - `Service`
+  - `RequestPath`: the route pattern, or `unknown` for unmatched URLs
+  - `HttpMethod`
+  - `StatusCode`: the status the caller got. A request that throws is recorded as 500, or as the status already sent. A caller that gives up first is recorded as 499 and isn't a fault.
+  - `ExceptionType`: on `RequestFaulted` only
+- **How they reach CloudWatch:** the metrics are written as AWS Embedded Metric Format (EMF) log lines.
+- **Settings:**
+  - On CDP, the platform sets `AWS_EMF_NAMESPACE` to the service name.
+  - `AWS_EMF_ENABLED=false` turns export off. The tests do this.
+  - Locally, `AWS_EMF_ENVIRONMENT=Local` prints the EMF lines to stdout. Both the launch profile and `compose.yml` set it.
+  - With export on but no namespace, the app won't start.
+
 ## Service-to-service authentication
 
 Callers authenticate with an API key, following the pattern used by the Manage Obligations service
@@ -299,6 +322,7 @@ Not set up yet:
 | `WasteSubmitRegPackagingApi/Utils/Postgres/` | The Postgres connection and its health check |
 | `WasteSubmitRegPackagingApi/Utils/TrustStore.cs` | Loads the certificates CDP supplies, so TLS to Postgres works |
 | `WasteSubmitRegPackagingApi/Utils/Logging/` | Logging in the format CDP requires |
+| `WasteSubmitRegPackagingApi/Utils/Metrics/` | Request metrics, exported to CloudWatch for the custom dashboard |
 | `WasteSubmitRegPackagingApi.Test/` | The tests, in the same folders as the code they test |
 | `postman/` | The Postman collection |
 | `compose.yml`, `compose/` | Local containers |
