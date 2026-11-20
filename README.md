@@ -130,8 +130,13 @@ A change in cdp-app-config does nothing until the service is redeployed from the
 ### Timeouts
 
 Every call out of the service has a timeout, as the CDP production readiness review (PRR) requires. When one runs out,
-the API answers `504 Gateway Timeout` with a problem response rather than holding the caller's request open. Other
-unhandled errors stay `500`. `CommonDataApiTimeoutTest` and `PostgresTimeoutTest` prove the timeouts fire.
+the API answers `504 Gateway Timeout` with a problem response rather than holding the caller's request open, and the
+request log records the 504. Other unhandled errors stay `500`. `CommonDataApiTimeoutTest` and `PostgresTimeoutTest`
+prove the timeouts fire.
+
+The resilience pipeline's timeouts cover the wait for epr-common-data-api's response headers. `HttpClient.Timeout` is
+set to the same overall timeout, so a response whose body never finishes is cut off too. Manage Obligations leaves it
+infinite, which leaves that case without a timeout.
 
 ## Postgres
 

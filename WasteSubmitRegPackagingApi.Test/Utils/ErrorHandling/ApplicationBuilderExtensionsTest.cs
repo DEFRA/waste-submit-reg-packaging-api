@@ -12,6 +12,14 @@ public class ApplicationBuilderExtensionsTest
         Assert.Equal(StatusCodes.Status504GatewayTimeout, ApplicationBuilderExtensions.Describe(new TimeoutRejectedException()).StatusCode);
 
     [Fact]
+    public void An_http_client_timeout_answers_504() =>
+        // HttpClient.Timeout, the backstop for a response body that never finishes, throws this.
+        Assert.Equal(
+            StatusCodes.Status504GatewayTimeout,
+            ApplicationBuilderExtensions.Describe(
+                new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout", new TimeoutException())).StatusCode);
+
+    [Fact]
     public void A_postgres_call_that_times_out_answers_504() =>
         // Npgsql reports both connect and command timeouts as an NpgsqlException wrapping a TimeoutException.
         Assert.Equal(

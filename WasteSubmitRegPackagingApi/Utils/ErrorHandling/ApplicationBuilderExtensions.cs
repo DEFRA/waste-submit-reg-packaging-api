@@ -45,6 +45,8 @@ public static class ApplicationBuilderExtensions
         {
             // The resilience pipeline's total or attempt timeout ran out on a downstream HTTP call.
             TimeoutRejectedException => (StatusCodes.Status504GatewayTimeout, "A downstream service did not respond in time"),
+            // HttpClient.Timeout ran out, which is the backstop for a response body that never finishes.
+            TaskCanceledException { InnerException: TimeoutException } => (StatusCodes.Status504GatewayTimeout, "A downstream service did not respond in time"),
             // Npgsql reports both its connect and command timeouts as an NpgsqlException wrapping a TimeoutException.
             NpgsqlException { InnerException: TimeoutException } => (StatusCodes.Status504GatewayTimeout, "The database did not respond in time"),
             _ => (StatusCodes.Status500InternalServerError, "An error occurred while processing your request.")

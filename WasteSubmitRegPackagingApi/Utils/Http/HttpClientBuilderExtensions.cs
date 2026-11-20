@@ -27,7 +27,13 @@ public static class HttpClientBuilderExtensions
                     .AddTimeout(options.AttemptTimeout);
             });
 
-        // The pipeline owns the timeouts, so HttpClient's own 100 second default must not cut in first.
-        return httpClientBuilder.ConfigureHttpClient(httpClient => httpClient.Timeout = Timeout.InfiniteTimeSpan);
+        // The pipeline's timeouts end the wait for the response headers. HttpClient then reads the body outside the
+        // pipeline, so its own timeout is set to the same total as a backstop for a body that never finishes.
+        // Manage Obligations sets it to infinite instead, which leaves that case without a timeout.
+        return httpClientBuilder.ConfigureHttpClient((serviceProvider, httpClient) =>
+            httpClient.Timeout = serviceProvider
+                .GetRequiredService<IOptionsMonitor<HttpStandardResilienceOptions>>()
+                .Get(name)
+                .TotalRequestTimeout.Timeout);
     }
 }

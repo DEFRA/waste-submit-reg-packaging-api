@@ -162,10 +162,11 @@ static void ConfigureOpenApi(IServiceCollection services)
 [ExcludeFromCodeCoverage]
 static void ConfigureMiddleware(WebApplication app)
 {
+    // Outside the error handler, so the request log records the status the caller gets (such as 504), not 500.
+    app.UseSerilogRequestLogging();
+
     // Problem responses for unhandled exceptions, including 504 when a downstream call times out.
     app.UseErrorHandling();
-
-    app.UseSerilogRequestLogging();
 
     app.UseHeaderPropagation();
 
