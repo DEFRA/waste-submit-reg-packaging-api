@@ -3,8 +3,8 @@ namespace WasteSubmitRegPackaging.SharedKernel.Users;
 /// <summary>
 /// A user of a producer or compliance scheme organisation, acting for that organisation.
 ///
-/// Service-to-service authentication says which frontend is calling. These types say which of its
-/// users the request is for. Commands carry the user explicitly, and domain methods ask for the kind
+/// The calling frontend says which of its users a request is for, in the user headers (see
+/// <c>HeaderCurrentUser</c>). Commands carry the user explicitly, and domain methods ask for the kind
 /// of user allowed to call them, so a regulator can't be passed where a producer is needed.
 /// </summary>
 public sealed record ProducerUser(Guid UserId, Guid OrganisationId)
