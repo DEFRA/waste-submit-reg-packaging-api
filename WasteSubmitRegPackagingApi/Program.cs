@@ -10,6 +10,7 @@ using WasteSubmitRegPackagingApi.Utils.Mongo;
 using WasteSubmitRegPackagingApi.Utils.Postgres;
 using System.Diagnostics.CodeAnalysis;
 using WasteSubmitRegPackagingApi.Utils.Logging;
+using WasteSubmitRegPackagingApi.Utils.Metrics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using MongoDB.Driver;
 using MongoDB.Driver.Authentication.AWS;
@@ -55,6 +56,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     services.AddValidation();
 
     services.AddHttpContextAccessor();
+    services.AddRequestMetrics();
 
     ConfigureHeaderPropagation(services, configuration);
     ConfigureHttpClients(services);
@@ -164,6 +166,8 @@ static void ConfigureMiddleware(WebApplication app)
 {
     // Outside the error handler, so the request log records the status the caller gets (such as 504), not 500.
     app.UseSerilogRequestLogging();
+    // Outside authentication, so rejected requests are counted with the status the caller got.
+    app.UseRequestMetrics();
 
     // Problem responses for unhandled exceptions, including 504 when a downstream call times out.
     app.UseErrorHandling();
