@@ -9,9 +9,9 @@ namespace WasteSubmitRegPackagingApi.Utils.Http;
 /// and the CDP Squid proxy refuses calls to <c>*.cdp-int.defra.cloud</c> in lower environments, so a call to another
 /// CDP service (waste-submit-stubs in perf-test, for example) would otherwise fail.
 /// </summary>
-[ExcludeFromCodeCoverage]
 public class ProxyHttpMessageHandler : HttpClientHandler
 {
+    /// <summary>Reads the process environment, so it's left out of coverage; <see cref="CreateProxy"/> holds the logic.</summary>
     [ExcludeFromCodeCoverage]
     public ProxyHttpMessageHandler(ILogger<ProxyHttpMessageHandler> logger)
     {
