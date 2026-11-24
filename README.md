@@ -120,10 +120,23 @@ Environment variables use `__` for nesting, so `Postgres__Host` sets `Postgres:H
 | `Postgres__UseIamAuthentication` | Sign in with an IAM token instead of a password | `true` |
 | `Postgres__Password` | Local databases only. Ignored when IAM is on | Not set |
 | `Postgres__SslMode` | TLS mode | `VerifyFull` |
+| `Postgres__ConnectTimeoutSeconds`, `Postgres__CommandTimeoutSeconds` | How long to wait to open a connection, and how long one query may run | `15` and `30` (Npgsql's defaults), from `appsettings.json` |
 | `Swagger__Enabled` | Serve Swagger and the OpenAPI document | `true` in dev and test only |
 | `CommonDataApi__BaseUrl` | epr-common-data-api's base address. **Required**: the service will not start without it | Set per environment in cdp-app-config, once the cross-platform networking (Squid ACL, auth) is in place |
+| `CommonDataApi__TotalRequestTimeout__Timeout`, `CommonDataApi__AttemptTimeout__Timeout`, `CommonDataApi__Retry__*` | Resilience for calls to epr-common-data-api, the same pipeline Manage Obligations uses: an overall timeout, retries, and a timeout per attempt | `00:01:00` overall, `00:00:20` per attempt, 2 retries with exponential backoff, from `appsettings.json` |
 
 A change in cdp-app-config does nothing until the service is redeployed from the CDP Portal.
+
+### Timeouts
+
+Every call out of the service has a timeout, as the CDP production readiness review (PRR) requires. When one runs out,
+the API answers `504 Gateway Timeout` with a problem response rather than holding the caller's request open, and the
+request log records the 504. Other unhandled errors stay `500`. `CommonDataApiTimeoutTest` and `PostgresTimeoutTest`
+prove the timeouts fire.
+
+The resilience pipeline's timeouts cover the wait for epr-common-data-api's response headers. `HttpClient.Timeout` is
+set to the same overall timeout, so a response whose body never finishes is cut off too. Manage Obligations leaves it
+infinite, which leaves that case without a timeout.
 
 ## Postgres
 
@@ -158,6 +171,29 @@ no password. `appsettings.Development.json` points the service at it.
 should not do that.
 
 Neither health check ever requires authentication, whatever `Authorization` header is sent.
+
+## Metrics
+
+Every request is recorded as three CloudWatch custom metrics. The custom Grafana dashboard, `waste-submit-reg-packaging-api (custom)`, charts them. The names and tags match Manage Obligations (`waste-obligations`), so its dashboard panels work here too.
+
+| Metric | Type | Recorded |
+|---|---|---|
+| `RequestReceived` | count | once per request |
+| `RequestDuration` | milliseconds | once per request |
+| `RequestFaulted` | count | when a request throws, including exceptions the error handler turns into a problem response |
+
+- **Tags:**
+  - `Service`
+  - `RequestPath`: the route pattern, or `unknown` for unmatched URLs
+  - `HttpMethod`: one of GET, HEAD, POST, PUT, PATCH, DELETE and OPTIONS, or `OTHER`
+  - `StatusCode`: the status the caller got, such as 500 for an error or 504 for a timeout (see [Timeouts](#timeouts)). A caller that gives up first is recorded as 499 and isn't a fault.
+  - `ExceptionType`: on `RequestFaulted` only
+- **How they reach CloudWatch:** the metrics are written as AWS Embedded Metric Format (EMF) log lines.
+- **Settings:**
+  - On CDP, the platform sets `AWS_EMF_NAMESPACE` to the service name.
+  - `AWS_EMF_ENABLED=false` turns export off. The tests do this.
+  - Locally, `AWS_EMF_ENVIRONMENT=Local` prints the EMF lines to stdout. Both the launch profile and `compose.yml` set it.
+  - With export on but no namespace, the app won't start.
 
 ## Service-to-service authentication
 
@@ -299,6 +335,7 @@ Not set up yet:
 | `WasteSubmitRegPackagingApi/Utils/Postgres/` | The Postgres connection and its health check |
 | `WasteSubmitRegPackagingApi/Utils/TrustStore.cs` | Loads the certificates CDP supplies, so TLS to Postgres works |
 | `WasteSubmitRegPackagingApi/Utils/Logging/` | Logging in the format CDP requires |
+| `WasteSubmitRegPackagingApi/Utils/Metrics/` | Request metrics, exported to CloudWatch for the custom dashboard |
 | `WasteSubmitRegPackagingApi.Test/` | The tests, in the same folders as the code they test |
 | `postman/` | The Postman collection |
 | `compose.yml`, `compose/` | Local containers |

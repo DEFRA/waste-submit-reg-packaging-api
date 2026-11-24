@@ -14,12 +14,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Amazon.CloudWatch.EMF" Version="2.2.0" />
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
     <PackageReference Include="AWSSDK.RDS" Version="3.7.515.4" />
     <PackageReference Include="Elastic.CommonSchema.Serilog" Version="9.0.0" />
     <PackageReference Include="Elastic.Serilog.Enrichers.Web" Version="9.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.HeaderPropagation" Version="10.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
     <PackageReference Include="MongoDB.Driver" Version="3.8.1" />
     <PackageReference Include="MongoDB.Driver.Authentication.AWS" Version="3.8.1" />
     <PackageReference Include="Npgsql" Version="10.0.3" />

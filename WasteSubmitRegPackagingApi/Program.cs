@@ -4,14 +4,17 @@ using WasteSubmitRegPackagingApi.Obligations.Endpoints;
 using WasteSubmitRegPackagingApi.Obligations.Services;
 using WasteSubmitRegPackagingApi.Config;
 using WasteSubmitRegPackagingApi.Utils;
+using WasteSubmitRegPackagingApi.Utils.ErrorHandling;
 using WasteSubmitRegPackagingApi.Utils.Http;
 using WasteSubmitRegPackagingApi.Utils.Mongo;
 using WasteSubmitRegPackagingApi.Utils.Postgres;
 using System.Diagnostics.CodeAnalysis;
 using WasteSubmitRegPackagingApi.Utils.Logging;
+using WasteSubmitRegPackagingApi.Utils.Metrics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using MongoDB.Driver;
 using MongoDB.Driver.Authentication.AWS;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Serilog;
 
@@ -53,6 +56,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     services.AddValidation();
 
     services.AddHttpContextAccessor();
+    services.AddRequestMetrics();
 
     ConfigureHeaderPropagation(services, configuration);
     ConfigureHttpClients(services);
@@ -124,11 +128,16 @@ static void ConfigurePostgres(IServiceCollection services, IConfiguration config
 [ExcludeFromCodeCoverage]
 static void ConfigureCommonDataApi(IServiceCollection services, IConfiguration configuration)
 {
+    const string name = "CommonDataApi";
+
     services
         .AddOptions<CommonDataApiConfig>()
-        .Bind(configuration.GetRequiredSection("CommonDataApi"))
+        .Bind(configuration.GetRequiredSection(name))
         .ValidateDataAnnotations()
         .ValidateOnStart();
+
+    // Timeouts and retries, as Manage Obligations configures its downstream clients.
+    services.AddOptions<HttpStandardResilienceOptions>(name).BindConfiguration(name);
 
     services
         .AddHttpClientWithTracingAndProxy<IApprovedSubmissionsProvider, CommonDataApiApprovedSubmissionsProvider>()
@@ -136,7 +145,8 @@ static void ConfigureCommonDataApi(IServiceCollection services, IConfiguration c
         {
             var config = serviceProvider.GetRequiredService<IOptions<CommonDataApiConfig>>().Value;
             client.BaseAddress = new Uri(config.BaseUrl.TrimEnd('/') + "/api/submissions/");
-        });
+        })
+        .AddResiliencePipeline(name);
 }
 
 [ExcludeFromCodeCoverage]
@@ -154,7 +164,13 @@ static void ConfigureOpenApi(IServiceCollection services)
 [ExcludeFromCodeCoverage]
 static void ConfigureMiddleware(WebApplication app)
 {
+    // Outside the error handler, so the request log records the status the caller gets (such as 504), not 500.
     app.UseSerilogRequestLogging();
+    // Outside authentication, so rejected requests are counted with the status the caller got.
+    app.UseRequestMetrics();
+
+    // Problem responses for unhandled exceptions, including 504 when a downstream call times out.
+    app.UseErrorHandling();
 
     app.UseHeaderPropagation();
 
