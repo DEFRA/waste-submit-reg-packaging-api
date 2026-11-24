@@ -273,7 +273,7 @@ tool, or send it to a team that will call the API.
 
 ## Postman
 
-[postman/waste-submit-reg-packaging-api.postman_collection.json](postman/waste-submit-reg-packaging-api.postman_collection.json)
+[postman/Waste Submit Reg Packaging API.postman_collection.json](postman/Waste Submit Reg Packaging API.postman_collection.json)
 covers every endpoint: both health checks, both packaging endpoints (including the empty and 404 cases), the API
 documentation, and (locally only) `GET /describe` with and without credentials. It has two folders with tests on every
 request.
@@ -286,11 +286,13 @@ request.
 Import the collection into Postman, then right-click a folder and choose **Run folder** to run every test. If
 `cdpApiKey` is empty, or the gateway rejects it, the dev requests say so.
 
+You will also need to setup the Authorization with basic auth using a username and password.
+
 To run them from the command line:
 
 ```bash
-npx newman run postman/waste-submit-reg-packaging-api.postman_collection.json --folder "1. Local"
-npx newman run postman/waste-submit-reg-packaging-api.postman_collection.json --folder "2. CDP dev" --env-var cdpApiKey=<your key>
+npx newman run postman/Waste Submit Reg Packaging API.postman_collection.json --folder "1. Local"
+npx newman run postman/Waste Submit Reg Packaging API.postman_collection.json --folder "2. CDP dev" --env-var cdpApiKey=<your key>
 ```
 
 ## Testing
@@ -301,6 +303,15 @@ dotnet test
 
 The tests start the whole app in memory and call it over HTTP. One test connects to a real, throwaway Postgres in
 Docker. Without Docker, that test is skipped rather than failed, which is what happens inside the Docker image build.
+
+### Performance Testing
+
+There is a performance test suite for this API located here:
+[waste-submit-performance-tests](https://github.com/DEFRA/waste-submit-performance-tests)
+
+This can be run within the CDP portal from here against the perf-test environment:
+[CDP waste-submit-performance-tests](https://portal.cdp-int.defra.cloud/test-suites/waste-submit-performance-tests)
+
 
 ## CI/CD
 
