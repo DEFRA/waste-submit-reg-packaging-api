@@ -32,4 +32,16 @@ public class PostgresConfig
     public string? Password { get; init; }
 
     public SslMode SslMode { get; init; } = SslMode.VerifyFull;
+
+    /// <summary>
+    /// How long to wait to open a connection before giving up. Npgsql's default.
+    /// </summary>
+    [Range(1, 600)]
+    public int ConnectTimeoutSeconds { get; init; } = 15;
+
+    /// <summary>
+    /// How long one query may run before it is cancelled. Npgsql's default.
+    /// </summary>
+    [Range(1, 600)]
+    public int CommandTimeoutSeconds { get; init; } = 30;
 }
