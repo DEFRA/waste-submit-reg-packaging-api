@@ -7,7 +7,16 @@ especially "Where to put new code", "Anatomy of a use case" and "Adding a use ca
 ## How to work
 - **Plan first.** Before writing code, list the files you will add or change, and say which existing slice you are
   copying.
-- **Copy an existing slice.** Don't invent a new structure. Reference slices:
+- **Build only the requirement.** State it in one line first. No extra hardening, config settings or abstractions
+  unless asked; suggest them as follow-ups instead.
+- **Cross-cutting code: framework, then library, then pattern.** For auth, HTTP, caching, retries, validation or
+  logging, check in this order: a built-in ASP.NET Core feature, a well-maintained library (already referenced, or
+  widely used), then an existing pattern here or in Manage Obligations (MO). Name the options in two or three lines and
+  recommend one with a reason. Copying MO is a choice, not the default. Keep MO-consistent only what other services
+  rely on: cdp-app-config shapes, header names, client ids.
+- **Stop if it grows.** If a simple requirement needs more than about 200 lines or 5 files, stop and say why before
+  continuing.
+- **Copy an existing slice for domain use cases.** Don't invent a new structure. Reference slices:
   - a command: `Registration/Application/Commands/RecordRegulatorDecision/`
   - a query: `Registration/Application/Queries/GetRegistrationSubmission/`
   - shared reference data with SQL: `SubmissionPeriods/Application/Queries/GetPackagingSubmissionPeriods/`
@@ -36,6 +45,9 @@ especially "Where to put new code", "Anatomy of a use case" and "Adding a use ca
    - an endpoint test that pins the JSON shape;
    - a domain or handler test for the rules;
    - a schema test when SQL or a changeset changes.
+
+   Test our behaviour, not the framework or a library: one test for success and one for each failure the requirement
+   names. Don't add tests that only restate configuration.
 
 ## Module boundaries (enforced by `ArchitectureTest`)
 - Modules:

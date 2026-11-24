@@ -25,16 +25,22 @@ internal sealed class GetPackagingSubmissionPeriodsHandler(SubmissionPeriodsDbCo
     public async Task<Result<IReadOnlyList<PackagingSubmissionPeriod>>> HandleAsync(
         GetPackagingSubmissionPeriodsQuery query, CancellationToken cancellationToken)
     {
-        // The {values} are sent as parameters, never pasted into the SQL. Each row carries its submission period's
-        // name and dates, so a code's own row is enough to say which submission period it's in.
-        var rows = await dbContext.Database.SqlQuery<PackagingSubmissionPeriodRow>($"""
-            SELECT p.code, p.description, p.start_date, p.end_date, p.producer_size,
-                   p.submission_period, p.opening_date, p.visible_from_date, p.deadline_date, p.registration_year
-            FROM period_packaging_submission_period p
-            WHERE {query.PeriodCode}::text IS NULL OR p.code = {query.PeriodCode}
-            ORDER BY p.opening_date, p.start_date, p.end_date, p.code
+        // The {values} are sent as parameters, never pasted into the SQL. Both tables are small, so they're read
+        // separately and paired up; submission periods left with no data periods are dropped.
+        var periods = await dbContext.Database.SqlQuery<PackagingSubmissionPeriodRow>($"""
+            SELECT s.name, s.year, s.visible_from_date, s.opening_date, s.deadline_date, s.registration_year
+            FROM period_packaging_submission_period s
+            ORDER BY s.opening_date, s.name
             """).ToListAsync(cancellationToken);
 
-        return Result<IReadOnlyList<PackagingSubmissionPeriod>>.Success(PackagingSubmissionPeriodRow.ToSubmissionPeriods(rows));
+        var dataPeriods = await dbContext.Database.SqlQuery<PackagingDataPeriodRow>($"""
+            SELECT d.code, d.description, d.start_date, d.end_date, d.producer_size, d.submission_period
+            FROM period_packaging_data_period d
+            WHERE {query.PeriodCode}::text IS NULL OR d.code = {query.PeriodCode}
+            ORDER BY d.start_date, d.end_date, d.code
+            """).ToListAsync(cancellationToken);
+
+        return Result<IReadOnlyList<PackagingSubmissionPeriod>>.Success(
+            PackagingSubmissionPeriodRow.ToSubmissionPeriods(periods, dataPeriods));
     }
 }

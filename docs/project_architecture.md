@@ -174,8 +174,8 @@ To find code, start from the use case folder: everything one endpoint does is in
 - `SharedKernel` has no infrastructure dependencies.
 - Only `<Name>Module`, `*Request` types and the enums they use are public. Everything else is `internal`.
 - Each module owns its tables (`reg_*`, `pkg_*`, `fee_*`, `period_*`), and **only that module writes to them**.
-- **The fee and period tables are shared.** Any module may join to the `fee_*` and `period_*` tables and hold
-  foreign keys to them (for example a packaging submission → a `period_packaging_submission_period` code). Only their Liquibase changesets
+- **The fee and period tables are shared.** Any module may join to the `fee_`* and `period_*` tables and hold
+  foreign keys to them (for example a packaging submission → a `period_packaging_data_period` code). Only their Liquibase changesets
   change them.
 - **There are no foreign keys between the workflow modules.** Store the other module's ID or key (for example
   `pkg_packaging_submission.registration_year`). Reads may join across them, but writes never cross. See
@@ -383,18 +383,20 @@ Fees (fee_*)                                                  used by
   fee_rate             amount (pence) per group, sub-group,
                        regulator and date period
 
-SubmissionPeriods (period_*): one table per domain. A row is "who + what", with the "when" dates on it.
+SubmissionPeriods (period_*):
   period_registration_submission_period   one per window type and registration year (CsoLargeProducer 2026 ...):
                                           the payment service's [Lookup].[SubmissionPeriod] rows and ids
-  period_packaging_submission_period      one per data period code (2025-H2, 2025-P0 ...): what the data covers,
+  period_packaging_submission_period      one per submission period ("July to December 2025"): visible from,
+                                          opening and deadline dates
+  period_packaging_data_period            one per data period code (2025-H2, 2025-P0 ...): what the data covers,
                                           who reports it (Large: H1, H2; Small: P0), and the submission period
-                                          it's submitted in ("July to December 2025") with its dates
+                                          that accepts it
 ```
 
-- **When and what.** Both domains have a *when* (when you can submit: opening, deadline, closing) and a *what*
-  (registration covers a registration year; packaging covers a data period such as 2026-H1). Each domain has one
-  table, like the payment service: the *when* dates repeat across rows, and a test checks that rows of one packaging
-  submission period agree. Packaging links to registration by `registration_year` (the data year + 1).
+- **When and what.** Both domains have a *when* (when you can submit) and a *what* (registration covers a
+  registration year; packaging covers a data period such as 2026-H1). Registration keeps the payment service's single
+  table. Packaging has a table for each, because one submission period accepts several data periods and its dates
+  are the same for all of them. Packaging links to registration by `registration_year` (the data year + 1).
 - **Naming: a table is `period_` plus the domain name, and the C# names are the same without the prefix.**
   `period_packaging_submission_period` is read by SQL into `PackagingSubmissionPeriodRow` (one row class per table,
   in `Application/Queries/SubmissionPeriodRows.cs`), and grouped into the contract `PackagingSubmissionPeriod`.
@@ -494,10 +496,11 @@ year a packaging submission relates to".
 For example (illustrative, because the workflow tables are still samples):
 
 ```sql
-SELECT p.id AS packaging_submission_id, pps.submission_period AS packaging_submission_period,
+SELECT p.id AS packaging_submission_id, pps.name AS packaging_submission_period,
        r.id AS registration_submission_id, r.registration_year, r.status
 FROM pkg_packaging_submission p
-JOIN period_packaging_submission_period pps ON pps.code = p.period_code
+JOIN period_packaging_data_period pdp ON pdp.code = p.period_code
+JOIN period_packaging_submission_period pps ON pps.name = pdp.submission_period
 LEFT JOIN reg_registration_submission r
        ON r.organisation_id = p.organisation_id AND r.registration_year = pps.registration_year
 WHERE p.organisation_id = @organisationId;
@@ -521,7 +524,7 @@ as easily as a frontend:
   every caller has moved.
 - **Codes, not text.** Errors carry a stable `code`, and values are codes (`GB-ENG`, `Granted`), so callers
   (and the Welsh frontend) map them to text themselves.
-- **No user headers for service calls.** The `X-User-*` headers identify a person acting in a frontend.
+- **No user headers for service calls.** The `X-User-`* headers identify a person acting in a frontend.
   Service-to-service reads (`read` scope) don't need them. Only endpoints marked `.RequireProducer()` or
   `.RequireRegulator()` do.
 - **Document it.** Each endpoint has a summary and description in OpenAPI, so other teams can use

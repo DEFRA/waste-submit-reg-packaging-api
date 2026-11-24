@@ -16,12 +16,29 @@ namespace WasteSubmitRegPackaging.SubmissionPeriods.Endpoints;
 /// <summary>
 /// Read-only endpoints for frontends and other services. There are no user headers: the periods are the same
 /// for everyone, so the <c>read</c> scope is enough. A frontend says who is submitting in the query string.
+/// Successful responses may be cached for 5 minutes, so a caller that caches can see a newly visible or opened period
+/// up to 5 minutes late.
 /// </summary>
 internal static class SubmissionPeriodsEndpoints
 {
+    private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(5);
+
     public static void Map(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/submission-periods").WithTags("Submission periods").RequireAuthorization(ModulePolicies.Read);
+        var group = app.MapGroup("/submission-periods").WithTags("Submission periods").RequireAuthorization(ModulePolicies.Read)
+            .AddEndpointFilter(async (context, next) =>
+            {
+                // The result is written after the filter returns, so the status is only known when the response starts.
+                var response = context.HttpContext.Response;
+                response.OnStarting(() =>
+                {
+                    if (response.StatusCode == StatusCodes.Status200OK)
+                        response.GetTypedHeaders().CacheControl = new() { Private = true, MaxAge = CacheFor };
+                    return Task.CompletedTask;
+                });
+
+                return await next(context);
+            });
 
         group.MapGet("/registration", GetRegistrationSubmissionPeriods)
             .WithName("GetRegistrationSubmissionPeriods")

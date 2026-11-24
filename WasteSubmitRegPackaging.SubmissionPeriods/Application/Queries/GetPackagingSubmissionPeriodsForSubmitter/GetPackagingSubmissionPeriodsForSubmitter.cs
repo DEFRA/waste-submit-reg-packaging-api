@@ -43,17 +43,22 @@ internal sealed class GetPackagingSubmissionPeriodsForSubmitterHandler(Submissio
         var ukNowParameter = new NpgsqlParameter("uk_now", NpgsqlDbType.Timestamp) { Value = ukNow };
         var producerSize = query.ProducerSize?.ToString();
 
-        var rows = await dbContext.Database.SqlQuery<PackagingSubmissionPeriodRow>($"""
-            SELECT p.code, p.description, p.start_date, p.end_date, p.producer_size,
-                   p.submission_period, p.opening_date, p.visible_from_date, p.deadline_date, p.registration_year
-            FROM period_packaging_submission_period p
-            WHERE p.visible_from_date <= {ukNowParameter}
-              AND ({producerSize}::text IS NULL OR p.producer_size = {producerSize})
-              AND ({query.SubmissionPeriod}::text IS NULL OR p.submission_period = {query.SubmissionPeriod})
-            ORDER BY p.opening_date, p.start_date, p.end_date, p.code
+        var periods = await dbContext.Database.SqlQuery<PackagingSubmissionPeriodRow>($"""
+            SELECT s.name, s.year, s.visible_from_date, s.opening_date, s.deadline_date, s.registration_year
+            FROM period_packaging_submission_period s
+            WHERE s.visible_from_date <= {ukNowParameter}
+              AND ({query.SubmissionPeriod}::text IS NULL OR s.name = {query.SubmissionPeriod})
+            ORDER BY s.opening_date, s.name
             """).ToListAsync(cancellationToken);
 
-        var tiles = PackagingSubmissionPeriodRow.ToSubmissionPeriods(rows)
+        var dataPeriods = await dbContext.Database.SqlQuery<PackagingDataPeriodRow>($"""
+            SELECT d.code, d.description, d.start_date, d.end_date, d.producer_size, d.submission_period
+            FROM period_packaging_data_period d
+            WHERE {producerSize}::text IS NULL OR d.producer_size = {producerSize}
+            ORDER BY d.start_date, d.end_date, d.code
+            """).ToListAsync(cancellationToken);
+
+        var tiles = PackagingSubmissionPeriodRow.ToSubmissionPeriods(periods, dataPeriods)
             .OrderByDescending(p => p.Year)
             .ThenBy(p => p.OpeningDate)
             .Select(p => new PackagingSubmissionPeriodTile(

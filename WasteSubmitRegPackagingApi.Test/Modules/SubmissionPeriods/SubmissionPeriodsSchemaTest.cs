@@ -81,24 +81,6 @@ public sealed class SubmissionPeriodsSchemaTest(ChangelogDatabase database) : IC
     }
 
     [Fact]
-    public async Task Rows_of_one_submission_period_share_its_dates()
-    {
-        // One row per data period means the submission period's dates are repeated, so they must agree.
-        Assert.SkipWhen(database.SkipReason is not null, database.SkipReason ?? "");
-        await using var context = CreateContext();
-
-        var disagreeing = await context.Database.SqlQuery<int>($"""
-            SELECT count(*)::int AS "Value"
-            FROM (SELECT submission_period
-                  FROM period_packaging_submission_period
-                  GROUP BY submission_period
-                  HAVING count(DISTINCT (opening_date, visible_from_date, deadline_date, registration_year)) > 1) d
-            """).SingleAsync(Ct);
-
-        Assert.Equal(0, disagreeing);
-    }
-
-    [Fact]
     public async Task A_period_code_finds_its_submission_period_and_dates()
     {
         Assert.SkipWhen(database.SkipReason is not null, database.SkipReason ?? "");

@@ -105,6 +105,31 @@ public class SubmissionPeriodsEndpointsTest
     }
 
     [Fact]
+    public async Task A_success_may_be_cached_privately_for_5_minutes()
+    {
+        _handler.HandleAsync(Arg.Any<GetPackagingSubmissionPeriodsForSubmitterQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<PackagingSubmissionPeriodTile>>.Success([s_tile]));
+        using var client = Client();
+
+        var response = await client.GetAsync("/submission-periods/packaging/for-submitter-type?submitterType=DirectProducer", Ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.CacheControl?.Private);
+        Assert.Equal(TimeSpan.FromMinutes(5), response.Headers.CacheControl?.MaxAge);
+    }
+
+    [Fact]
+    public async Task An_error_is_not_cached()
+    {
+        using var client = Client();
+
+        var response = await client.GetAsync("/submission-periods/packaging/for-submitter-type", Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null(response.Headers.CacheControl?.MaxAge);
+    }
+
+    [Fact]
     public async Task Without_credentials_it_is_a_401()
     {
         await using var factory = new AclTestFactory();

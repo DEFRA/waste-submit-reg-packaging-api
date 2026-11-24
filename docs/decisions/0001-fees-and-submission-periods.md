@@ -36,10 +36,12 @@ If packaging built these its own way, the registration move would have to rework
    submit ("July to December 2025"). A data period is the time the data covers, identified by the code in the
    POM file: 2025-H2 is July to December, and 2025-P0 is the whole of 2025. A submission period accepts one or
    more data periods, and each data period has its own description, dates and producer size (large
-   producers report H1 and H2, small producers P0). Like registration (and the payment service's
-   `[Lookup].[SubmissionPeriod]`), it's one table, `period_packaging_submission_period`, with a row per data period
-   and the submission period's dates repeated on each row. This brings together the POM validation function's
-   config, epr-data-sqldb's `v_PoM_Codes` and the calculator's `submission_period_lookup`.
+   producers report H1 and H2, small producers P0). So there are two tables: `period_packaging_submission_period`,
+   one row per submission period with its dates (visible from, opening, deadline), and `period_packaging_data_period`,
+   one row per code with a foreign key to the submission period that accepts it. The dates belong to the submission
+   period only: in EPR they don't vary by data period, producer size or submitter type. This brings together the
+   packaging frontend's and POM validation function's config, epr-data-sqldb's `v_PoM_Codes` and the calculator's
+   `submission_period_lookup`.
 
    **No validation error codes in the period tables.** The POM validation function's per-period codes (54 to 89)
    were its own config. Validation becomes a project in this service, which checks a file's period codes against
