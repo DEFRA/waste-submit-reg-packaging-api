@@ -1,11 +1,10 @@
 using System.Net;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace WasteSubmitRegPackagingApi.Test.OpenApi;
 
 /// <summary>
-/// Deployed, UnpublishedEndpoints:Enabled is false: unpublished (sample) endpoints are a 404, published ones still work.
+/// Deployed, UnpublishedEndpoints:Enabled is false: unpublished (sample) endpoints are a 404, even without credentials,
+/// and published ones still work.
 /// </summary>
 public class UnpublishedEndpointGateTest
 {
@@ -25,13 +24,13 @@ public class UnpublishedEndpointGateTest
     {
         await using var factory = AppWithUnpublishedEndpointsOff();
         using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = AclTestFactory.Basic(AclTestFactory.ClientId, AclTestFactory.Secret);
 
         var response = await client.GetAsync("/describe", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    private static WebApplicationFactory<Program> AppWithUnpublishedEndpointsOff() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseSetting("UnpublishedEndpoints:Enabled", "false"));
+    private static AclTestFactory AppWithUnpublishedEndpointsOff() =>
+        new(new Dictionary<string, string?> { ["UnpublishedEndpoints:Enabled"] = "false" });
 }

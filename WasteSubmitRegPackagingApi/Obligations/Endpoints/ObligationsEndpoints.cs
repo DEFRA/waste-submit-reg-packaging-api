@@ -1,3 +1,4 @@
+using WasteSubmitRegPackagingApi.Authentication;
 using WasteSubmitRegPackagingApi.Obligations.Models;
 using WasteSubmitRegPackagingApi.Obligations.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -11,7 +12,8 @@ public static class ObligationsEndpoints
     public static RouteGroupBuilder MapObligationsEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/packaging/{packagingYear:int}")
-            .WithTags("Packaging");
+            .WithTags("Packaging")
+            .RequireAuthorization(PolicyNames.Read);
 
         // Both return approved submissions only; a status filter can be added later if needed.
         group.MapGet("/submitter-organisation/{submitterOrganisationId:guid}/producer-material-totals", GetProducerMaterialTotals)

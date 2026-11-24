@@ -18,7 +18,8 @@ especially "Where to put new code", "Anatomy of a use case" and "Adding a use ca
 ## A use case is a vertical slice inside one module
 1. **Request:** a `public sealed class XxxRequest` with DataAnnotations, in `Endpoints/`. Shape errors give a 400.
 2. **Endpoint:** a thin `MapGet`/`MapPost` in `Endpoints/XxxEndpoints.cs`. It has a `.WithName(...)`, a `.WithSummary(...)`
-   and **`.Unpublished()`**. It maps the request to a command or query, calls the handler, and returns
+   and **`.Unpublished()`**, and `.RequireAuthorization(ModulePolicies.Read)` for a query or `ModulePolicies.Write` for
+   a command. It maps the request to a command or query, calls the handler, and returns
    `result.IsSuccess ? TypedResults.X(...) : result.Error.ToProblem()`. Add `.RequireProducer()` or
    `.RequireRegulator()` when a user acts.
 3. **Command or query, and its handler:** one folder per use case under `Application/Commands/<UseCase>/` or
@@ -58,7 +59,8 @@ especially "Where to put new code", "Anatomy of a use case" and "Adding a use ca
 
 ## Not decided yet: don't build on these without asking
 - The trust model for the user headers (`X-User-Id`, `X-User-Type`, `X-Organisation-Id`) is a placeholder.
-- There is no service-to-service auth, on purpose.
+- Every endpoint except health needs a service-to-service API key client (the ACL from `main`, with `read` and
+  `write` scopes). Don't remove or bypass it.
 - The outbox works, but its publisher only logs. Routing by event type and a real sender aren't built.
 - The registration, regulator and packaging submission endpoints are SAMPLES (`.AsSample(...)`). They will change.
 

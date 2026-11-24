@@ -21,7 +21,7 @@ internal static class SubmissionPeriodsEndpoints
 {
     public static void Map(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/submission-periods").WithTags("Submission periods");
+        var group = app.MapGroup("/submission-periods").WithTags("Submission periods").RequireAuthorization(ModulePolicies.Read);
 
         group.MapGet("/registration", GetRegistrationSubmissionPeriods)
             .WithName("GetRegistrationSubmissionPeriods")

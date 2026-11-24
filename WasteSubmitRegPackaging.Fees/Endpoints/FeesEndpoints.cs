@@ -23,7 +23,7 @@ internal static class FeesEndpoints
 {
     public static void Map(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/fees").WithTags("Fees");
+        var group = app.MapGroup("/fees").WithTags("Fees").RequireAuthorization(ModulePolicies.Read);
 
         // A POST because it takes several inputs, but it changes nothing.
         group.MapPost("/packaging-resubmission", CalculatePackagingResubmissionFee)

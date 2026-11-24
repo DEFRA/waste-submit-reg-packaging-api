@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
@@ -7,17 +8,29 @@ using WasteSubmitRegPackaging.SharedKernel.Users;
 namespace WasteSubmitRegPackagingApi.Utils.OpenApi;
 
 /// <summary>
-/// Tidies the OpenAPI document for clients and Swagger UI: endpoints that need a user get the X-User-* header
-/// fields for their kind of user, filled in with example values.
+/// Describes the API key and the actor headers in the OpenAPI document, so Swagger UI can call the
+/// endpoints: its Authorize button sends the Basic credentials, and endpoints that need an actor get
+/// the X-User-* header fields for their kind of user, filled in with example values.
 /// </summary>
 internal static class SwaggerTransformers
 {
-    public static OpenApiOptions AddSwaggerTransformers(this OpenApiOptions options)
+    public const string BasicScheme = "basic";
+
+    public static OpenApiOptions AddSwaggerAuthTransformers(this OpenApiOptions options)
     {
         options.CreateSchemaReferenceId = SchemaIds.ForDocument();
 
         options.AddDocumentTransformer((document, _, _) =>
         {
+            document.Components ??= new OpenApiComponents();
+            document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+            document.Components.SecuritySchemes[BasicScheme] = new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "basic",
+                Description = "The client id and secret from Acl:Clients. Locally: Developer / developer-pwd."
+            };
+
             // Request bodies only: there, "required" comes from [Required], so the value can't be null. Response
             // records list every property as required, including ones that can be null, so they are left alone.
             // This runs on the finished document, because references to enum schemas are only in place by then.
@@ -30,7 +43,7 @@ internal static class SwaggerTransformers
 
             foreach (var id in requestBodySchemaIds)
             {
-                if (document.Components?.Schemas is { } schemas && schemas.TryGetValue(id, out var found) && found is OpenApiSchema requestSchema)
+                if (document.Components.Schemas is { } schemas && schemas.TryGetValue(id, out var found) && found is OpenApiSchema requestSchema)
                 {
                     RequiredIsNeverNull(requestSchema);
                 }
@@ -48,6 +61,20 @@ internal static class SwaggerTransformers
         options.AddOperationTransformer((operation, context, _) =>
         {
             var metadata = context.Description.ActionDescriptor.EndpointMetadata;
+
+            if (metadata.OfType<IAuthorizeData>().Any() && !metadata.OfType<IAllowAnonymous>().Any())
+            {
+                operation.Security ??= [];
+                operation.Security.Add(new OpenApiSecurityRequirement
+                {
+                    [new OpenApiSecuritySchemeReference(BasicScheme, context.Document)] = []
+                });
+
+                // So generated clients know these can happen. Neither has a body.
+                operation.Responses ??= [];
+                operation.Responses.TryAdd("401", new OpenApiResponse { Description = "Missing or wrong client credentials." });
+                operation.Responses.TryAdd("403", new OpenApiResponse { Description = "The client doesn't have the scope this endpoint needs." });
+            }
 
             switch (metadata.OfType<RequiresUserMetadata>().FirstOrDefault()?.UserType)
             {

@@ -16,7 +16,7 @@
         "tags": [
           "Service"
         ],
-        "summary": "Name of this service.",
+        "summary": "Name of this service. Requires service-to-service authentication.",
         "operationId": "Describe",
         "responses": {
           "200": {
@@ -28,8 +28,19 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or wrong client credentials."
+          },
+          "403": {
+            "description": "The client doesn't have the scope this endpoint needs."
           }
-        }
+        },
+        "security": [
+          {
+            "basic": []
+          }
+        ]
       }
     },
     "/packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals": {
@@ -83,8 +94,19 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or wrong client credentials."
+          },
+          "403": {
+            "description": "The client doesn't have the scope this endpoint needs."
           }
-        }
+        },
+        "security": [
+          {
+            "basic": []
+          }
+        ]
       }
     },
     "/packaging/{packagingYear}/producer-material-totals-by-submitter": {
@@ -118,8 +140,19 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or wrong client credentials."
+          },
+          "403": {
+            "description": "The client doesn't have the scope this endpoint needs."
           }
-        }
+        },
+        "security": [
+          {
+            "basic": []
+          }
+        ]
       }
     },
     "/submission-periods/packaging": {
@@ -152,8 +185,19 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or wrong client credentials."
+          },
+          "403": {
+            "description": "The client doesn't have the scope this endpoint needs."
           }
-        }
+        },
+        "security": [
+          {
+            "basic": []
+          }
+        ]
       }
     },
     "/submission-periods/packaging/for-submitter-type": {
@@ -204,8 +248,19 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or wrong client credentials."
+          },
+          "403": {
+            "description": "The client doesn't have the scope this endpoint needs."
           }
-        }
+        },
+        "security": [
+          {
+            "basic": []
+          }
+        ]
       }
     },
     "/submission-periods/packaging/{submissionPeriod}/for-submitter-type": {
@@ -271,8 +326,19 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or wrong client credentials."
+          },
+          "403": {
+            "description": "The client doesn't have the scope this endpoint needs."
           }
-        }
+        },
+        "security": [
+          {
+            "basic": []
+          }
+        ]
       }
     }
   },
@@ -637,6 +703,13 @@
           "ComplianceScheme"
         ],
         "type": "string"
+      }
+    },
+    "securitySchemes": {
+      "basic": {
+        "type": "http",
+        "description": "The client id and secret from Acl:Clients. Locally: Developer / developer-pwd.",
+        "scheme": "basic"
       }
     }
   },

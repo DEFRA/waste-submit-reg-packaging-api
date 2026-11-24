@@ -19,9 +19,9 @@ public class ObligationsEndpointsTest
     private const string ComplianceSchemeId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     private const string NoSubmissionsId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
-    // The stub provider gives these tests known data.
+    // The stub provider gives these tests known data; AclTestFactory adds the test API key clients.
     private static WebApplicationFactory<Program> CreateFactory() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        new AclTestFactory().WithWebHostBuilder(builder =>
             builder.ConfigureServices(services =>
                 services.AddSingleton<IApprovedSubmissionsProvider, StubApprovedSubmissionsProvider>()));
 
@@ -30,7 +30,7 @@ public class ObligationsEndpointsTest
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = CreateFactory();
-        using var client = factory.CreateClient();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync(
             $"/packaging/2024/submitter-organisation/{DirectRegistrantId}/producer-material-totals", cancellationToken);
@@ -58,7 +58,7 @@ public class ObligationsEndpointsTest
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = CreateFactory();
-        using var client = factory.CreateClient();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync(
             $"/packaging/2024/submitter-organisation/{ComplianceSchemeId}/producer-material-totals", cancellationToken);
@@ -84,7 +84,7 @@ public class ObligationsEndpointsTest
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = CreateFactory();
-        using var client = factory.CreateClient();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync(
             $"/packaging/2024/submitter-organisation/{ComplianceSchemeId}/producer-material-totals", cancellationToken);
@@ -103,7 +103,7 @@ public class ObligationsEndpointsTest
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = CreateFactory();
-        using var client = factory.CreateClient();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync(
             $"/packaging/2024/submitter-organisation/{Guid.NewGuid()}/producer-material-totals", cancellationToken);
@@ -122,7 +122,7 @@ public class ObligationsEndpointsTest
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = CreateFactory();
-        using var client = factory.CreateClient();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync(
             $"/packaging/{packagingYear}/submitter-organisation/{submitterOrganisationId}/producer-material-totals", cancellationToken);
@@ -138,7 +138,7 @@ public class ObligationsEndpointsTest
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = CreateFactory();
-        using var client = factory.CreateClient();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync("/packaging/2024/producer-material-totals-by-submitter", cancellationToken);
 
@@ -169,7 +169,7 @@ public class ObligationsEndpointsTest
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = CreateFactory();
-        using var client = factory.CreateClient();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync("/packaging/2023/producer-material-totals-by-submitter", cancellationToken);
 
@@ -184,13 +184,33 @@ public class ObligationsEndpointsTest
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var factory = CreateFactory();
-        using var client = factory.CreateClient();
+        using var client = CreateAuthenticatedClient(factory);
 
         var response = await client.GetAsync("/packaging/latest/producer-material-totals-by-submitter", cancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("/packaging/2024/producer-material-totals-by-submitter")]
+    [InlineData($"/packaging/2024/submitter-organisation/{DirectRegistrantId}/producer-material-totals")]
+    public async Task Unauthenticated_request_is_refused(string url)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new AclTestFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync(url, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    private static HttpClient CreateAuthenticatedClient(WebApplicationFactory<Program> factory)
+    {
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = AclTestFactory.Basic(AclTestFactory.ClientId, AclTestFactory.Secret);
+        return client;
+    }
 
     private static (int Code, string? Action, string? Date) Describe(JsonElement leaverJoinerEvent) =>
         (leaverJoinerEvent.GetProperty("code").GetInt32(),

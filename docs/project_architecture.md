@@ -36,7 +36,8 @@ The service is a plain HTTP API. Its callers are **both frontends and other serv
 | Manage Obligations (waste-obligations) | **Service** | Packaging data with the registration it relates to, for obligation calculations. The existing `/packaging/{year}/…` endpoints already serve it |
 | Others to come (e.g. PayCal, public register, reporting) | **Service** | Read-only questions, usually across packaging **and** registration |
 
-Calls aren't authenticated service-to-service (see [Security](#security-and-the-acting-user)).
+Every caller is a client in the ACL with its own key and scopes (see [Security](#security-and-the-acting-user)).
+Service callers usually only need `read`.
 
 It does three jobs:
 
@@ -130,7 +131,7 @@ every endpoint needs an entity method or an event.
 ## Layout
 
 ```
-WasteSubmitRegPackagingApi/                      Host: Program.cs, CDP plumbing (logging, Postgres, trust store).
+WasteSubmitRegPackagingApi/                      Host: Program.cs, CDP plumbing (auth, logging, Postgres, trust store).
                                                  Wires up modules; holds no business logic.
 WasteSubmitRegPackaging.SharedKernel/            Result/Error, ICommand/IQuery + handlers, AggregateRoot, IDomainEvent, ProducerUser/RegulatorUser.
                                                  No dependencies at all.
@@ -423,7 +424,7 @@ SubmissionPeriods (period_*): one table per domain. A row is "who + what", with 
 - **No validation error codes.** Today's per-period codes (54, 55, 65 ... 89) were config for the POM validation
   function. The validation project in this service owns its error codes in code: it checks a file's period codes
   against the chosen period's data periods (and the producer's size), with one stable error code.
-- **Over HTTP** there are, for frontends and services (no user headers):
+- **Over HTTP** there are, for frontends and services (`read` scope, no user headers):
   - `GET /submission-periods/registration?registrationYear=`: the registration submission periods, as the payment
     facade's `submission-periods` endpoint gives the frontend today.
   - `GET /submission-periods/packaging?periodCode=`: every packaging submission period, for services; with a code,
@@ -521,15 +522,17 @@ as easily as a frontend:
 - **Codes, not text.** Errors carry a stable `code`, and values are codes (`GB-ENG`, `Granted`), so callers
   (and the Welsh frontend) map them to text themselves.
 - **No user headers for service calls.** The `X-User-*` headers identify a person acting in a frontend.
-  Service-to-service reads don't need them. Only endpoints marked `.RequireProducer()` or
+  Service-to-service reads (`read` scope) don't need them. Only endpoints marked `.RequireProducer()` or
   `.RequireRegulator()` do.
 - **Document it.** Each endpoint has a summary and description in OpenAPI, so other teams can use
   `/swagger` (or the published spec) without asking.
 
 ## Security and the acting user
 
-- **Services** aren't authenticated: CDP doesn't require it, and nothing needs it yet. If it's needed later, copy
-  the API key ACL from Manage Obligations.
+- **Services** are authenticated by the existing ACL (Basic API key per client). Queries need the `Read` policy
+  (scope `read`) and commands need `Write` (scope `write`, added on this branch). **Every caller gets its own
+  client**: each frontend, and each service such as Manage Obligations, with only the scopes it needs. That gives
+  each caller its own key to rotate or revoke, and its own entry in the logs. Most services only need `read`.
 - **The user.** The domain names the people who use the service: a `ProducerUser` (user id and the organisation
   they act for) and a `RegulatorUser`. Domain methods ask for the one allowed to call them, for example
   `RecordDecision(..., RegulatorUser decidedBy, ...)`, so a producer can't make a decision: it doesn't compile.

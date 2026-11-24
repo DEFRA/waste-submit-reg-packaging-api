@@ -31,7 +31,7 @@ public class OpenApiTest
     }
 
     [Fact]
-    public async Task OpenApi_document_describes_the_user_headers_so_swagger_can_call_the_api()
+    public async Task OpenApi_document_describes_the_api_key_and_the_user_headers_so_swagger_can_call_the_api()
     {
         // The endpoints that need a user are samples for now, so this reads the unpublished document.
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -41,15 +41,22 @@ public class OpenApiTest
         using var json = JsonDocument.Parse(await client.GetStringAsync(UnpublishedDocument, cancellationToken));
         var root = json.RootElement;
 
+        var scheme = root.GetProperty("components").GetProperty("securitySchemes").GetProperty("basic");
+        Assert.Equal("http", scheme.GetProperty("type").GetString());
+        Assert.Equal("basic", scheme.GetProperty("scheme").GetString());
+
         var decision = root.GetProperty("paths").GetProperty("/regulator/registrations/{registrationSubmissionId}/decisions").GetProperty("post");
+        Assert.True(decision.GetProperty("security")[0].TryGetProperty("basic", out _));
+
         Assert.Equal(["X-User-Id", "X-User-Type"], HeaderNames(decision));
 
         // A producer also says which organisation they act for.
         var submit = root.GetProperty("paths").GetProperty("/registrations/{registrationSubmissionId}/application-submission").GetProperty("post");
         Assert.Equal(["X-User-Id", "X-User-Type", "X-Organisation-Id"], HeaderNames(submit));
 
-        // Queries need no user.
+        // Queries need the API key but no user.
         var query = root.GetProperty("paths").GetProperty("/regulator/registrations/{registrationSubmissionId}").GetProperty("get");
+        Assert.True(query.GetProperty("security")[0].TryGetProperty("basic", out _));
         Assert.DoesNotContain(
             query.TryGetProperty("parameters", out var parameters) ? parameters.EnumerateArray() : Enumerable.Empty<JsonElement>(),
             p => p.GetProperty("in").GetString() == "header");
@@ -163,6 +170,26 @@ public class OpenApiTest
         var id = schema.GetProperty("$ref").GetString()!.Split('/')[^1];
         return root.GetProperty("components").GetProperty("schemas").GetProperty(id)
             .GetProperty("enum").EnumerateArray().Select(value => value.GetString()).ToList();
+    }
+
+    [Fact]
+    public async Task Every_secured_v1_endpoint_documents_401_and_403()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        using var json = JsonDocument.Parse(await client.GetStringAsync(V1Document, cancellationToken));
+        var operations = json.RootElement.GetProperty("paths").EnumerateObject()
+            .SelectMany(path => path.Value.EnumerateObject())
+            .ToList();
+
+        Assert.NotEmpty(operations);
+        Assert.All(operations, operation =>
+        {
+            Assert.True(operation.Value.GetProperty("responses").TryGetProperty("401", out _));
+            Assert.True(operation.Value.GetProperty("responses").TryGetProperty("403", out _));
+        });
     }
 
     /// <summary>

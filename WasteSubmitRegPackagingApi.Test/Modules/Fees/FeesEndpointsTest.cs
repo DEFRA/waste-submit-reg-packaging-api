@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -81,15 +80,27 @@ public class FeesEndpointsTest
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Without_credentials_it_is_a_401()
+    {
+        await using var factory = new AclTestFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/submission-periods/packaging", Ct);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     private HttpClient Client()
     {
-        var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        var factory = new AclTestFactory().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IQueryHandler<CalculatePackagingResubmissionFeeQuery, ResubmissionFee>>();
             services.AddSingleton(_handler);
         }));
 
         var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = AclTestFactory.Basic(AclTestFactory.ClientId, AclTestFactory.Secret);
         return client;
     }
 }
