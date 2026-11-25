@@ -237,8 +237,8 @@ client is an entry in the `Acl:Clients` access control list:
 The packaging submit frontend (waste-submit-reg-packaging-fe) calls as client `WasteSubmitRegPackagingFrontend`. Its `Type` and `Scopes` are in the service's `defaults.env` in CDP app config, as they are the same in every environment.
 
 Endpoints opt in with `.RequireAuthorization(PolicyNames.Read)`, as in Manage Obligations, so a
-client's scopes decide what it can call. The `/packaging` endpoints and `/describe` require `read`, and `EndpointSecurityTest`
-fails the build if any of them loses its policy.
+client's scopes decide what it can call. Every endpoint except the health checks and the OpenAPI documents requires
+`read` or `write`, and `EndpointConventionsTest` fails the build if one is mapped without a policy.
 Client ids are matched case-insensitively and secrets are compared in constant time. Every client is validated at
 startup: it must be an `ApiKey` client with a secret and known scopes. `read` is the only scope for now; add others, such
 as `write`, when an endpoint needs them. The outcomes are:
@@ -252,7 +252,7 @@ There is deliberately no fallback policy.
 caller. Use it to prove a caller's credentials work end to end.
 
 **The health checks never require authentication.** CDP polls them, and an auth failure would mark
-the service unhealthy. They are mapped with `.AllowAnonymous()`, and `HealthEndpointsAnonymousTest`
+the service unhealthy. They are mapped with `.AllowAnonymous()`, and `EndpointConventionsTest`
 fails the build if that changes or a fallback policy is added.
 
 Locally, `appsettings.Development.json` (for `dotnet run`) and `compose.yml` (for Docker Compose) define a `Developer` client:
@@ -317,7 +317,7 @@ Every build writes the documents to `WasteSubmitRegPackagingApi/openapi.json` (v
 aren't committed. Instead:
 
 - **The approved v1 contract is committed** as
-  `WasteSubmitRegPackagingApi.Test/Contract/OpenApiTest.The_v1_document_matches_the_approved_contract.verified.json`.
+  `WasteSubmitRegPackagingApi.Test/ContractTests/OpenApiTest.The_v1_document_matches_the_approved_contract.verified.json`.
   A test fails when the API changes it, so every change to the contract shows up in the pull request. To accept a
   change, replace the `.verified.json` with the `.received.json` the failing run writes.
 - **Each pull request build** lints `openapi.json` with Vacuum and attaches it as the `openapi.json` artifact.
@@ -378,16 +378,16 @@ The test project is foldered by type of test, then by module:
 
 | Folder | What it holds | Needs Docker |
 |---|---|---|
-| `Architecture/` | Module boundaries and endpoint conventions | No |
-| `Unit/` | Business rules, with no host and no database | No |
-| `Http/` | The app started in memory and called over HTTP, with the layer below substituted | No |
-| `Database/` | SQL, mapping and seeded data on a throwaway Postgres built from the Liquibase changelog | Yes |
-| `Integration/` | The app and Postgres together | Yes |
-| `Contract/` | The v1 OpenAPI snapshot | No |
+| `ArchitectureTests/` | Module boundaries and endpoint conventions | No |
+| `UnitTests/` | Business rules, with no host and no database | No |
+| `ServiceTests/` | The service running on a throwaway Postgres built from the Liquibase changelog, with the real handlers and the seeded data. `XxxEndpointsTest`: the app started in memory and called over HTTP | Yes |
+| | `XxxDatabaseTest`: SQL, mapping and seeded data, with a handler called directly | Yes |
+| `ContractTests/` | The v1 OpenAPI snapshot | No |
 | `Support/` | Shared factories, fixtures and test data | |
 
 Without Docker, the tests that need it are skipped rather than failed, which is what happens inside the Docker image
-build. To run one type, filter on its namespace: `dotnet test --filter "FullyQualifiedName~.Test.Unit."`.
+build. In GitHub Actions (`CI=true`) they fail instead, so a pull request can't pass with the database tests unrun.
+To run one type, filter on its namespace: `dotnet test --filter "FullyQualifiedName~.Test.UnitTests."`.
 
 Where a new test goes is in [CLAUDE.md](CLAUDE.md), "Testing". Checks against a deployed environment are not here:
 they are in waste-submit-journey-tests and waste-submit-performance-tests.

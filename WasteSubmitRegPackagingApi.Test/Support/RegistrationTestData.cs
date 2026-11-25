@@ -7,7 +7,11 @@ internal static class RegistrationTestData
 {
     public static readonly DateTimeOffset Now = new(2026, 3, 1, 9, 0, 0, TimeSpan.Zero);
 
-    public static RegistrationSubmission Started() =>
+    /// <summary>
+    /// Reference numbers are unique in the database, so tests that share one pass their own
+    /// (<see cref="NewReferenceNumber"/>).
+    /// </summary>
+    public static RegistrationSubmission Started(string applicationReferenceNumber = "pepr00012345") =>
         RegistrationSubmission.Start(
             TestUsers.Producer,
             TestUsers.ProducerOrganisationId,
@@ -15,43 +19,18 @@ internal static class RegistrationTestData
             registrationYear: 2026,
             RegistrationJourney.DirectLargeProducer,
             Nation.England,
-            "pepr00012345",
+            applicationReferenceNumber,
             Now).Value;
 
-    public static RegistrationSubmission SubmittedForApproval()
+    public static RegistrationSubmission SubmittedForApproval(string applicationReferenceNumber = "pepr00012345")
     {
-        var submission = Started();
+        var submission = Started(applicationReferenceNumber);
         submission.SubmitApplication(TestUsers.Producer, "Additional information", Now).ShouldSucceed();
         return submission;
     }
 
+    public static string NewReferenceNumber() => $"PEPR{Guid.NewGuid():N}"[..16].ToUpperInvariant();
+
     public static void ShouldSucceed(this Result result) =>
         Assert.True(result.IsSuccess, result.Error?.Code);
-}
-
-/// <summary>
-/// An in-memory repository, so the endpoint tests can run the real handlers and domain without Postgres.
-/// </summary>
-internal sealed class InMemoryRegistrationSubmissionRepository : IRegistrationSubmissionRepository
-{
-    private readonly Dictionary<RegistrationSubmissionId, RegistrationSubmission> _submissions = [];
-
-    public int Saves { get; private set; }
-
-    public void Seed(RegistrationSubmission submission) => _submissions[submission.Id] = submission;
-
-    public Task<RegistrationSubmission?> GetAsync(RegistrationSubmissionId id, CancellationToken cancellationToken) =>
-        Task.FromResult(_submissions.GetValueOrDefault(id));
-
-    public Task<bool> ApplicationReferenceNumberExistsAsync(string applicationReferenceNumber, CancellationToken cancellationToken) =>
-        Task.FromResult(_submissions.Values.Any(s =>
-            s.ApplicationReferenceNumber == applicationReferenceNumber.Trim().ToUpperInvariant()));
-
-    public void Add(RegistrationSubmission submission) => _submissions[submission.Id] = submission;
-
-    public Task<Result> SaveChangesAsync(CancellationToken cancellationToken)
-    {
-        Saves++;
-        return Task.FromResult(Result.Success());
-    }
 }

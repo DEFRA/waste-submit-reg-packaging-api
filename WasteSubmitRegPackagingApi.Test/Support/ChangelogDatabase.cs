@@ -10,7 +10,7 @@ namespace WasteSubmitRegPackagingApi.Test.Support;
 /// <summary>
 /// A throwaway Postgres with the real Liquibase changelog applied, shared by the tests in one class
 /// (<c>IClassFixture&lt;ChangelogDatabase&gt;</c>). It needs Docker; without it, <see cref="SkipReason"/> is set
-/// and the tests skip, as in the Dockerfile build.
+/// and the tests skip, as in the Dockerfile build. In CI the tests fail instead (<see cref="TestEnvironment.DockerIsRequired"/>).
 /// </summary>
 public sealed class ChangelogDatabase : IAsyncLifetime
 {
@@ -20,6 +20,9 @@ public sealed class ChangelogDatabase : IAsyncLifetime
     private PostgreSqlContainer? _postgres;
 
     public string? SkipReason { get; private set; }
+
+    /// <summary>Where the database is, for a test that starts the host against it.</summary>
+    public NpgsqlConnectionStringBuilder ConnectionDetails => new(_postgres!.GetConnectionString());
 
     public DbContextOptions<TContext> Options<TContext>(Action<DbContextOptionsBuilder<TContext>>? configure = null)
         where TContext : DbContext
@@ -46,7 +49,7 @@ public sealed class ChangelogDatabase : IAsyncLifetime
 
             await ApplyChangelogAsync();
         }
-        catch (DockerUnavailableException)
+        catch (DockerUnavailableException) when (!TestEnvironment.DockerIsRequired)
         {
             SkipReason = "Docker is not available, so there is no Postgres to apply the changelog to.";
         }

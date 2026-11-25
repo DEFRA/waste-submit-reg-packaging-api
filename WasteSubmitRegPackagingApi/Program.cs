@@ -219,7 +219,7 @@ static void ConfigureMiddleware(WebApplication app)
 static void ConfigureEndpoints(WebApplication app)
 {
     // CDP polls /health to decide whether the container is alive, so it leaves out the database.
-    // Health checks must never require authentication; HealthEndpointsAnonymousTest guards this.
+    // Health checks must never require authentication; HealthEndpointsAnonymousTest and EndpointConventionsTest guard this.
     app.MapHealthChecks("/health", new HealthCheckOptions
     {
         Predicate = check => !check.Tags.Contains(PostgresHealthChecks.Tag)

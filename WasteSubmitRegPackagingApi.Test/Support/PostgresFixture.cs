@@ -6,7 +6,7 @@ namespace WasteSubmitRegPackagingApi.Test.Support;
 
 /// <summary>
 /// A throwaway Postgres on the same major version as CDP's Aurora clusters. The Dockerfile runs the
-/// tests inside the image build, where there is no Docker, so tests that need it skip there instead of failing.
+/// tests inside the image build, where there is no Docker, so tests that need it skip there instead of failing. In CI they fail (<see cref="TestEnvironment.DockerIsRequired"/>).
 /// </summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
@@ -25,7 +25,7 @@ public sealed class PostgresFixture : IAsyncLifetime
             await container.StartAsync();
             _container = container;
         }
-        catch (DockerUnavailableException)
+        catch (DockerUnavailableException) when (!TestEnvironment.DockerIsRequired)
         {
             // No Docker, so IsAvailable stays false.
         }

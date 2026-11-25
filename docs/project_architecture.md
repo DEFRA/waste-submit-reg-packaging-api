@@ -20,7 +20,7 @@ endpoints (`/registrations`, `/regulator/registrations`, `/packaging/submissions
 `.AsSample(...)`, which adds a "SAMPLE:" description and keeps them out of the v1 OpenAPI document. They're in the
 `unpublished` one (see the README, "Publishing an endpoint"). They give the structure now and will be developed in due
 course, so no frontend or service should build against them yet. The Manage Obligations endpoints (`/packaging/{packagingYear}/...`)
-are real and aren't marked. `OpenApiTest` checks both. Fees and SubmissionPeriods are **real**: their tables,
+are real and aren't marked. The v1 snapshot (`OpenApiTest`) shows what is published. Fees and SubmissionPeriods are **real**: their tables,
 data and the resubmission fee calculation are ported from epr-payment-service and today's config, with parity tests.
 
 The patterns are standard .NET ones. See [Where the patterns come from](#where-the-patterns-come-from).
@@ -552,12 +552,11 @@ The rules for where a test goes, and what belongs in the journey and performance
 
 | Folder | What it proves | Example | Needs |
 |---|---|---|---|
-| `Architecture/` | Module boundaries and endpoint conventions | `ArchitectureTest` | Nothing |
-| `Unit/` | Rules in the domain, a calculator or a handler (most rule tests belong here) | `RegistrationSubmissionTest`, `ResubmissionFeeTest`, `RecordRegulatorDecisionHandlerTest` (NSubstitute) | Nothing |
-| `Http/` | The HTTP layer: real host, with the handler or repository substituted | `RegistrationEndpointsTest` | Nothing |
-| `Database/` | SQL, the EF mapping and the seeded data, on Postgres built from the Liquibase changelog | `RegistrationDatabaseTest`, `FeesDatabaseTest`, `SubmissionPeriodsDatabaseTest` | Docker; skipped without it, as in the Dockerfile build |
-| `Integration/` | The real host and Postgres together | `PostgresHealthCheckTest` | Docker, as above |
-| `Contract/` | The v1 OpenAPI snapshot | `OpenApiTest` | Nothing |
+| `ArchitectureTests/` | Module boundaries and endpoint conventions | `ArchitectureTest`, `EndpointConventionsTest` | Nothing |
+| `UnitTests/` | Rules in the domain, a calculator or a handler (most rule tests belong here) | `RegistrationSubmissionTest`, `ResubmissionFeeTest`, `RecordRegulatorDecisionHandlerTest` (NSubstitute) | Nothing |
+| `ServiceTests/` | An endpoint called over HTTP, through the real host, handlers and Postgres built from the Liquibase changelog. Nothing is substituted except the clock and epr-common-data-api | `RegistrationEndpointsTest`, `SubmissionPeriodsEndpointsTest` | Docker; skipped without it, as in the Dockerfile build, but failed in CI |
+| | SQL, the EF mapping and the seeded data, on Postgres built from the Liquibase changelog | `RegistrationDatabaseTest`, `FeesDatabaseTest`, `SubmissionPeriodsDatabaseTest` | Docker, as above |
+| `ContractTests/` | The v1 OpenAPI snapshot | `OpenApiTest` | Nothing |
 | `Support/` | Factories, fixtures and test data; no tests | `AclTestFactory`, `ChangelogDatabase` | |
 
 ## Where the patterns come from

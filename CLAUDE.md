@@ -42,9 +42,9 @@ especially "Where to put new code", "Anatomy of a use case" and "Adding a use ca
    Liquibase changeset in `changelog/changes/<module>/`, with id `<module>-<NNNN>-<what>`, included from
    `changelog/db.changelog.xml`. Never edit a changeset that has been applied. Columns are snake_case.
 7. **Tests:** see "Testing" below for where each one goes. A use case normally needs:
-   - a `Unit/` test for the rules (domain or handler);
-   - an `Http/` test that pins the JSON shape and the failures;
-   - a `Database/` test when SQL or a changeset changes.
+   - a `UnitTests/` test for the rules (domain or handler);
+   - a `ServiceTests/` `XxxEndpointsTest` that calls the endpoint and pins the JSON shape and the failures;
+   - a `ServiceTests/` `XxxDatabaseTest` when a rule lives in SQL or a changeset changes.
 
 ## Module boundaries (enforced by `ArchitectureTest`)
 - Modules:
@@ -72,21 +72,34 @@ for auth, health, metrics, timeouts). Pick the lowest type that can prove the be
 
 | Folder | What it proves | May use |
 |---|---|---|
-| `Architecture/` | Module boundaries, and conventions every endpoint must meet | Reflection only |
-| `Unit/` | Business rules in an aggregate, calculator, mapper or handler | Nothing; NSubstitute for a repository |
-| `Http/` | Binding, validation, status codes, error codes, auth, JSON shape | Host in memory, handler or repository substituted |
-| `Database/` | SQL, EF mapping against the changelog, seeded reference data | Postgres from `ChangelogDatabase` |
-| `Integration/` | A published endpoint works through the real host and Postgres together | Both, nothing substituted |
-| `Contract/` | The v1 OpenAPI document is unchanged | The snapshot |
+| `ArchitectureTests/` | Module boundaries, and conventions every endpoint must meet | Reflection only |
+| `UnitTests/` | Business rules in an aggregate, calculator, mapper or handler | Nothing; NSubstitute for a repository |
+| `ServiceTests/` | The service running, on the real handlers and the seeded data | The host in memory and Postgres from `ChangelogDatabase` |
+| `ContractTests/` | The v1 OpenAPI document is unchanged | The snapshot |
 
-- A rule goes in `Unit/`. If the rule lives in SQL it goes in `Database/`. Never test a rule only over HTTP.
-- `Http/` tests don't need Docker. If a test needs Postgres it is `Database/` or `Integration/`.
-- `Integration/` is for published endpoints only: one success per endpoint. Failures belong in `Http/`.
+A service test is one of two kinds, and its class name says which:
+
+| Class | What it proves | How |
+|---|---|---|
+| `XxxEndpointsTest` | An endpoint works: binding, validation, status codes, error codes, JSON shape, and the answer from the seeded data | Over HTTP, through the real host, handlers and Postgres |
+| `XxxDatabaseTest` | SQL, EF mapping against the changelog, seeded reference data | A handler or the `DbContext` called directly on Postgres |
+
+- A rule goes in `UnitTests/`. If the rule lives in SQL it goes in an `XxxDatabaseTest`. Never test a rule only over
+  HTTP.
+- Nothing is substituted in `ServiceTests/`: no NSubstitute handler, no in-memory repository. Use the data the
+  changelog seeds; a test that needs a row of its own saves it through the real `DbContext`.
+- Two things may be replaced: the clock (`FixedTimeProvider`), and a service this one calls (epr-common-data-api,
+  with `StubApprovedSubmissionsProvider` or a fake HTTP handler).
+- Service tests on a module's data need Docker.
 - One test for success and one for each failure the requirement names. Don't test the framework, a library, default
   settings or the unpublished OpenAPI document.
+- Don't write a "no credentials is a 401" test for a new endpoint: `EndpointConventionsTest` fails if any endpoint
+  lacks the read or write policy. Don't repeat in `ContractTests/` what the v1 snapshot already pins.
+- Tests that need Docker skip without it locally and in the image build, and fail in CI (`CI=true`).
 - Shared factories, fixtures and test data go in `Support/` (no tests there). Reuse `AclTestFactory`,
   `ChangelogDatabase` and `TestUsers` before writing a new one.
-- Name the class for its type: `XxxTest`, `XxxEndpointsTest`, `XxxDatabaseTest`, `XxxIntegrationTest`.
+- A unit test class is `XxxTest`. Keep to the two service test names above.
+- Start the host with `AclTestFactory(PostgresSettings.For(database.ConnectionDetails))`.
 
 Not in this repo. Both suites cover published endpoints only, and publishing an endpoint means adding it to both:
 - **waste-submit-journey-tests:** does a deployed environment work? One 200 with the expected shape per endpoint, one
