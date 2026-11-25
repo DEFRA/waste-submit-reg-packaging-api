@@ -38,7 +38,14 @@ internal sealed class HeaderCurrentUser(IHttpContextAccessor httpContextAccessor
         if (!Guid.TryParse(headers[UserHeaders.UserId], out var userId))
             return null;
 
-        if (!Enum.TryParse<UserType>(headers[UserHeaders.Type], ignoreCase: true, out var type) || !Enum.IsDefined(type))
+        // By name only. Enum.TryParse would also accept a number or a comma-separated list.
+        var typeName = headers[UserHeaders.Type].ToString();
+        UserType type;
+        if (typeName.Equals(nameof(UserType.Producer), StringComparison.OrdinalIgnoreCase))
+            type = UserType.Producer;
+        else if (typeName.Equals(nameof(UserType.Regulator), StringComparison.OrdinalIgnoreCase))
+            type = UserType.Regulator;
+        else
             return null;
 
         Guid? organisationId = Guid.TryParse(headers[UserHeaders.OrganisationId], out var parsed) ? parsed : null;

@@ -57,10 +57,10 @@ internal static class FeesEndpoints
 
 public sealed class CalculatePackagingResubmissionFeeRequest
 {
-    [Required]
+    [Required, EnumDataType(typeof(Submitter))]
     public Submitter? Submitter { get; init; }
 
-    [Required]
+    [Required, EnumDataType(typeof(RegulatorNation))]
     public RegulatorNation? Regulator { get; init; }
 
     /// <summary>Matched to a rate by its UTC date. Future dates are allowed, as today.</summary>

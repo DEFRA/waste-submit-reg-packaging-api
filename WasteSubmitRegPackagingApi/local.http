@@ -49,6 +49,9 @@ X-Organisation-Id: {{org}}
 ### 2. Producer's view → status InProgress
 GET {{base}}/registrations/{{id}}
 Authorization: {{auth}}
+X-User-Id: {{producer}}
+X-User-Type: Producer
+X-Organisation-Id: {{org}}
 
 ### 3. Producer submits the application → 204
 POST {{base}}/registrations/{{id}}/application-submission
@@ -63,6 +66,8 @@ X-Organisation-Id: {{org}}
 ### 4. Regulator's view → status SubmittedForApproval, availableRegulatorDecisions Grant, Refuse, Query
 GET {{base}}/regulator/registrations/{{id}}
 Authorization: {{auth}}
+X-User-Id: {{regulator}}
+X-User-Type: Regulator
 
 ### 5. Regulator grants → 200, status Granted
 POST {{base}}/regulator/registrations/{{id}}/decisions

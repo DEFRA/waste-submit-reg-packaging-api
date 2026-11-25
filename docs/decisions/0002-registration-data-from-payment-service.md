@@ -15,7 +15,7 @@
 1. **The registration submission period ids and values are the payment service's, unchanged.**
    - **What's copied:** `period_registration_submission_period` has the same id, window type, registration year and opening,
      deadline and closing dates as `[Lookup].[SubmissionPeriod]`.
-   - **A test pins this:** `SubmissionPeriodsSchemaTest.The_registration_submission_periods_keep_the_payment_services_ids_and_values`
+   - **A test pins this:** `SubmissionPeriodsDatabaseTest.The_registration_submission_periods_keep_the_payment_services_ids_and_values`
      checks all 12 rows.
    - **How ids are kept:**
      - they're copied, never generated: a plain `integer` key, with no identity;

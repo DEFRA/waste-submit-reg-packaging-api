@@ -7,7 +7,11 @@ using WasteSubmitRegPackaging.SharedKernel.Results;
 
 namespace WasteSubmitRegPackaging.Registration.Application.Queries.GetRegistrationSubmission;
 
-internal sealed record GetRegistrationSubmissionQuery(RegistrationSubmissionId RegistrationSubmissionId)
+/// <param name="Producer">
+/// The producer user asking, who may only see their own organisation's registration. Null for a regulator, who
+/// sees them all.
+/// </param>
+internal sealed record GetRegistrationSubmissionQuery(RegistrationSubmissionId RegistrationSubmissionId, ProducerUser? Producer = null)
     : IQuery<RegistrationSubmissionView>;
 
 /// <summary>
@@ -51,6 +55,9 @@ internal sealed class GetRegistrationSubmissionHandler(RegistrationDbContext dbC
 
         if (submission is null)
             return RegistrationErrors.NotFound(query.RegistrationSubmissionId);
+
+        if (query.Producer is { } producer && !producer.ActsFor(submission.OrganisationId))
+            return RegistrationErrors.NotYourOrganisation;
 
         return new RegistrationSubmissionView(
             submission.Id.Value,

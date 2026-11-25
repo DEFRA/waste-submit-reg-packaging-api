@@ -13,6 +13,7 @@ namespace WasteSubmitRegPackaging.Registration.Endpoints;
 // architecture test checks this.
 //
 // Value types are nullable with [Required], so a missing field is a 400 rather than a silent default.
+// Enums also have [EnumDataType]: without it, a number that isn't one of the enum's values ("nation": 9) gets through.
 
 public sealed class StartRegistrationRequest
 {
@@ -25,10 +26,10 @@ public sealed class StartRegistrationRequest
     [Required, Range(2025, 2100)]
     public int? RegistrationYear { get; init; }
 
-    [Required]
+    [Required, EnumDataType(typeof(RegistrationJourney))]
     public RegistrationJourney? Journey { get; init; }
 
-    [Required]
+    [Required, EnumDataType(typeof(Nation))]
     public Nation? Nation { get; init; }
 
     [Required, StringLength(50, MinimumLength = 5)]
@@ -46,7 +47,7 @@ public sealed class SubmitRegistrationApplicationRequest
 
 public sealed class RecordRegulatorDecisionRequest
 {
-    [Required]
+    [Required, EnumDataType(typeof(RegulatorDecision))]
     public RegulatorDecision? Decision { get; init; }
 
     [StringLength(400)]

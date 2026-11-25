@@ -317,7 +317,7 @@ Every build writes the documents to `WasteSubmitRegPackagingApi/openapi.json` (v
 aren't committed. Instead:
 
 - **The approved v1 contract is committed** as
-  `WasteSubmitRegPackagingApi.Test/OpenApi/OpenApiTest.The_v1_document_matches_the_approved_contract.verified.json`.
+  `WasteSubmitRegPackagingApi.Test/Contract/OpenApiTest.The_v1_document_matches_the_approved_contract.verified.json`.
   A test fails when the API changes it, so every change to the contract shows up in the pull request. To accept a
   change, replace the `.verified.json` with the `.received.json` the failing run writes.
 - **Each pull request build** lints `openapi.json` with Vacuum and attaches it as the `openapi.json` artifact.
@@ -374,8 +374,23 @@ npx newman run postman/waste-submit-reg-packaging-api.postman_collection.json --
 dotnet test
 ```
 
-The tests start the whole app in memory and call it over HTTP. One test connects to a real, throwaway Postgres in
-Docker. Without Docker, that test is skipped rather than failed, which is what happens inside the Docker image build.
+The test project is foldered by type of test, then by module:
+
+| Folder | What it holds | Needs Docker |
+|---|---|---|
+| `Architecture/` | Module boundaries and endpoint conventions | No |
+| `Unit/` | Business rules, with no host and no database | No |
+| `Http/` | The app started in memory and called over HTTP, with the layer below substituted | No |
+| `Database/` | SQL, mapping and seeded data on a throwaway Postgres built from the Liquibase changelog | Yes |
+| `Integration/` | The app and Postgres together | Yes |
+| `Contract/` | The v1 OpenAPI snapshot | No |
+| `Support/` | Shared factories, fixtures and test data | |
+
+Without Docker, the tests that need it are skipped rather than failed, which is what happens inside the Docker image
+build. To run one type, filter on its namespace: `dotnet test --filter "FullyQualifiedName~.Test.Unit."`.
+
+Where a new test goes is in [CLAUDE.md](CLAUDE.md), "Testing". Checks against a deployed environment are not here:
+they are in waste-submit-journey-tests and waste-submit-performance-tests.
 
 ## CI/CD
 
@@ -416,7 +431,7 @@ Not set up yet:
 | `WasteSubmitRegPackagingApi/Utils/TrustStore.cs` | Loads the certificates CDP supplies, so TLS to Postgres works |
 | `WasteSubmitRegPackagingApi/Utils/Logging/` | Logging in the format CDP requires |
 | `WasteSubmitRegPackagingApi/Utils/Metrics/` | Request metrics, exported to CloudWatch for the custom dashboard |
-| `WasteSubmitRegPackagingApi.Test/` | The tests, in the same folders as the code they test |
+| `WasteSubmitRegPackagingApi.Test/` | The tests, foldered by type of test (see [Testing](#testing)) |
 | `postman/` | The Postman collection |
 | `compose.yml`, `compose/` | Local containers |
 

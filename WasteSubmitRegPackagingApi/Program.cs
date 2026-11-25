@@ -233,13 +233,20 @@ static void ConfigureEndpoints(WebApplication app)
     // Off in production. Swagger:Enabled turns it on per environment.
     if (app.Configuration.GetValue<bool>("Swagger:Enabled"))
     {
-        app.MapOpenApi();
+        var unpublishedEnabled = app.Configuration.GetValue<bool>("UnpublishedEndpoints:Enabled");
+
+        // The unpublished document is a 404 wherever its endpoints are, so it never describes endpoints nobody can call.
+        app.MapOpenApi().AddEndpointFilter(async (context, next) =>
+            !unpublishedEnabled
+            && OpenApiDocuments.Unpublished.Equals(context.HttpContext.GetRouteValue("documentName") as string, StringComparison.OrdinalIgnoreCase)
+                ? Results.NotFound()
+                : await next(context));
 
         // Relative, so the page still finds the document behind CDP's /{service-name} path prefix.
         app.UseSwaggerUI(options =>
         {
             options.SwaggerEndpoint($"../openapi/{OpenApiDocuments.V1}.json", "Waste Submit Reg Packaging API");
-            if (app.Configuration.GetValue<bool>("UnpublishedEndpoints:Enabled"))
+            if (unpublishedEnabled)
             {
                 options.SwaggerEndpoint($"../openapi/{OpenApiDocuments.Unpublished}.json", "Unpublished");
             }

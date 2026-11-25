@@ -121,11 +121,12 @@ internal static class SubmissionPeriodsEndpoints
 public sealed class GetPackagingPeriodsForSubmitterRequest
 {
     // Named, so the OpenAPI document lists them camelCase like every other query parameter.
-    [Required]
+    [Required, EnumDataType(typeof(SubmitterType))]
     [FromQuery(Name = "submitterType")]
     public SubmitterType? SubmitterType { get; init; }
 
     /// <summary>A direct producer's size, if known. Leave it out for a compliance scheme.</summary>
+    [EnumDataType(typeof(ProducerSize))]
     [FromQuery(Name = "producerSize")]
     public ProducerSize? ProducerSize { get; init; }
 }

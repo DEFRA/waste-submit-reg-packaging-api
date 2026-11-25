@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="WasteSubmitRegPackagingApi.Test.Support" />
   </ItemGroup>
 
   <ItemGroup>

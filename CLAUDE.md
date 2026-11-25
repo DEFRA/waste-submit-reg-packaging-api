@@ -30,7 +30,7 @@ especially "Where to put new code", "Anatomy of a use case" and "Adding a use ca
    and **`.Unpublished()`**, and `.RequireAuthorization(ModulePolicies.Read)` for a query or `ModulePolicies.Write` for
    a command. It maps the request to a command or query, calls the handler, and returns
    `result.IsSuccess ? TypedResults.X(...) : result.Error.ToProblem()`. Add `.RequireProducer()` or
-   `.RequireRegulator()` when a user acts.
+   `.RequireRegulator()` when a user acts or reads one organisation's data.
 3. **Command or query, and its handler:** one folder per use case under `Application/Commands/<UseCase>/` or
    `Application/Queries/<UseCase>/`, with `internal sealed` records and the handler together. Application rules go here
    (own organisation, required-when rules, anything that needs the database). Handlers are registered automatically.
@@ -41,13 +41,10 @@ especially "Where to put new code", "Anatomy of a use case" and "Adding a use ca
 6. **Persistence:** go through the module's repository or `DbContext`. Schema and reference data change through a new
    Liquibase changeset in `changelog/changes/<module>/`, with id `<module>-<NNNN>-<what>`, included from
    `changelog/db.changelog.xml`. Never edit a changeset that has been applied. Columns are snake_case.
-7. **Tests:** in `WasteSubmitRegPackagingApi.Test/Modules/<Module>/`:
-   - an endpoint test that pins the JSON shape;
-   - a domain or handler test for the rules;
-   - a schema test when SQL or a changeset changes.
-
-   Test our behaviour, not the framework or a library: one test for success and one for each failure the requirement
-   names. Don't add tests that only restate configuration.
+7. **Tests:** see "Testing" below for where each one goes. A use case normally needs:
+   - a `Unit/` test for the rules (domain or handler);
+   - an `Http/` test that pins the JSON shape and the failures;
+   - a `Database/` test when SQL or a changeset changes.
 
 ## Module boundaries (enforced by `ArchitectureTest`)
 - Modules:
@@ -68,6 +65,33 @@ especially "Where to put new code", "Anatomy of a use case" and "Adding a use ca
   Never accept a change to it without saying so. Publishing an endpoint (removing `.Unpublished()`) is a decision
   for the team, not part of a code change: see "Publishing an endpoint" in the README.
 - Stable JSON: add fields freely. Don't rename or remove fields, or change enum values, in published endpoints.
+
+## Testing
+Tests are in `WasteSubmitRegPackagingApi.Test/`. Put a test in the folder for its type, then the module (`Platform`
+for auth, health, metrics, timeouts). Pick the lowest type that can prove the behaviour.
+
+| Folder | What it proves | May use |
+|---|---|---|
+| `Architecture/` | Module boundaries, and conventions every endpoint must meet | Reflection only |
+| `Unit/` | Business rules in an aggregate, calculator, mapper or handler | Nothing; NSubstitute for a repository |
+| `Http/` | Binding, validation, status codes, error codes, auth, JSON shape | Host in memory, handler or repository substituted |
+| `Database/` | SQL, EF mapping against the changelog, seeded reference data | Postgres from `ChangelogDatabase` |
+| `Integration/` | A published endpoint works through the real host and Postgres together | Both, nothing substituted |
+| `Contract/` | The v1 OpenAPI document is unchanged | The snapshot |
+
+- A rule goes in `Unit/`. If the rule lives in SQL it goes in `Database/`. Never test a rule only over HTTP.
+- `Http/` tests don't need Docker. If a test needs Postgres it is `Database/` or `Integration/`.
+- `Integration/` is for published endpoints only: one success per endpoint. Failures belong in `Http/`.
+- One test for success and one for each failure the requirement names. Don't test the framework, a library, default
+  settings or the unpublished OpenAPI document.
+- Shared factories, fixtures and test data go in `Support/` (no tests there). Reuse `AclTestFactory`,
+  `ChangelogDatabase` and `TestUsers` before writing a new one.
+- Name the class for its type: `XxxTest`, `XxxEndpointsTest`, `XxxDatabaseTest`, `XxxIntegrationTest`.
+
+Not in this repo. Both suites cover published endpoints only, and publishing an endpoint means adding it to both:
+- **waste-submit-journey-tests:** does a deployed environment work? One 200 with the expected shape per endpoint, one
+  401, and one unpublished endpoint that is a 404. No business rules, and no assertions on specific data.
+- **waste-submit-performance-tests:** is an endpoint fast enough in perf-test? Status and shape checks only.
 
 ## Not decided yet: don't build on these without asking
 - The trust model for the user headers (`X-User-Id`, `X-User-Type`, `X-Organisation-Id`) is a placeholder.

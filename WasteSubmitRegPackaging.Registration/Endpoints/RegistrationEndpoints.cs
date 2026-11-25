@@ -40,7 +40,8 @@ internal static class RegistrationEndpoints
         producer.MapGet("/{registrationSubmissionId:guid}", GetRegistrationSubmission)
             .WithName("GetRegistrationSubmission")
             .WithSummary("A registration, with its status, history and the actions available (sample)")
-            .RequireAuthorization(ModulePolicies.Read);
+            .RequireAuthorization(ModulePolicies.Read)
+            .RequireProducer();
 
         producer.MapPost("/{registrationSubmissionId:guid}/application-submission", SubmitRegistrationApplication)
             .WithName("SubmitRegistrationApplication")
@@ -50,10 +51,11 @@ internal static class RegistrationEndpoints
 
         var regulator = app.MapGroup("/regulator/registrations").AsSample("Regulator", "registration");
 
-        regulator.MapGet("/{registrationSubmissionId:guid}", GetRegistrationSubmission)
+        regulator.MapGet("/{registrationSubmissionId:guid}", GetRegulatorRegistrationSubmission)
             .WithName("GetRegulatorRegistrationSubmission")
             .WithSummary("A registration, as the regulator sees it (sample)")
-            .RequireAuthorization(ModulePolicies.Read);
+            .RequireAuthorization(ModulePolicies.Read)
+            .RequireRegulator();
 
         regulator.MapPost("/{registrationSubmissionId:guid}/decisions", RecordRegulatorDecision)
             .WithName("RecordRegulatorDecision")
@@ -87,9 +89,24 @@ internal static class RegistrationEndpoints
 
     private static async Task<Results<Ok<RegistrationSubmissionView>, ProblemHttpResult>> GetRegistrationSubmission(
         Guid registrationSubmissionId,
+        [FromServices] ICurrentUser currentUser,
         [FromServices] IQueryHandler<GetRegistrationSubmissionQuery, RegistrationSubmissionView> handler,
         CancellationToken cancellationToken)
     {
+        // The producer is passed in, so the handler checks the registration is their organisation's.
+        var result = await handler.HandleAsync(
+            new GetRegistrationSubmissionQuery(new RegistrationSubmissionId(registrationSubmissionId), currentUser.Producer!),
+            cancellationToken);
+
+        return result.IsSuccess ? TypedResults.Ok(result.Value) : result.Error.ToProblem();
+    }
+
+    private static async Task<Results<Ok<RegistrationSubmissionView>, ProblemHttpResult>> GetRegulatorRegistrationSubmission(
+        Guid registrationSubmissionId,
+        [FromServices] IQueryHandler<GetRegistrationSubmissionQuery, RegistrationSubmissionView> handler,
+        CancellationToken cancellationToken)
+    {
+        // A regulator can see every organisation's registration.
         var result = await handler.HandleAsync(
             new GetRegistrationSubmissionQuery(new RegistrationSubmissionId(registrationSubmissionId)), cancellationToken);
 

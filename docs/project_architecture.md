@@ -147,7 +147,7 @@ WasteSubmitRegPackaging.SubmissionPeriods.Contracts/
                                                  What SubmissionPeriods offers other modules (ISubmissionPeriodsApi + DTOs).
 WasteSubmitRegPackaging.SubmissionPeriods/       The SubmissionPeriods module (period_* tables).
 changelog/                                       Liquibase: db.changelog.xml → changes/<module>/NNNN-*.xml
-WasteSubmitRegPackagingApi.Test/Modules/         Architecture, domain, handler, endpoint and database tests.
+WasteSubmitRegPackagingApi.Test/                 Tests, foldered by type: Architecture, Unit, Http, Database, Integration, Contract.
 ```
 
 Inside each module, folders are layers. Each one answers a single question:
@@ -303,7 +303,7 @@ point 8.
 - **Changesets are never edited** once applied, because Liquibase checksums them. Ids are
   `<module>-<NNNN>-<what>`, so the teams can't clash.
 - **Naming.** EF uses the snake_case convention (`ApplicationReferenceNumber` → `application_reference_number`).
-  Table names are set explicitly with the module prefix. `ModuleSchemaTest` applies the real changelog to
+  Table names are set explicitly with the module prefix. `RegistrationDatabaseTest` applies the real changelog to
   Postgres and round-trips an aggregate, which proves the mapping and changelog agree.
 - **IDs** are strongly typed (`RegistrationSubmissionId`) and created in code with `Guid.CreateVersion7()`.
 - **Time** is `DateTimeOffset` UTC from an injected `TimeProvider`, so tests use a fixed clock.
@@ -345,7 +345,7 @@ eShopOnContainers did). That was mostly because older EF Core couldn't run SQL i
   every row.
 - **Types**: `timestamptz` reads as `DateTimeOffset`, `timestamp` as `DateTime`, and an array works with
   `= ANY({ids})`.
-- **Test it on Postgres**, as `SubmissionPeriodsSchemaTest` does. That's what proves the SQL matches the
+- **Test it on Postgres**, as `SubmissionPeriodsDatabaseTest` does. That's what proves the SQL matches the
   changelog; the compiler can't.
 
 ## Outbox
@@ -463,7 +463,7 @@ Packaging command (for example "submit a resubmission")
 ```
 
 - **Fees stores nothing per submission.** The calculator is pure, so the same inputs always give the same
-  lines. That's how parity with epr-payment-service is tested (`ResubmissionFeeTest`, `FeesSchemaTest`).
+  lines. That's how parity with epr-payment-service is tested (`ResubmissionFeeTest`, `FeesDatabaseTest`).
 - **The workflow owns its snapshot.** That's `pkg_fee_snapshot` and `pkg_fee_line_item` (later `reg_...` tables with
   the same shape), saved with the status change.
   - A line copies the unit price and description, so a later rate change can't alter what was charged.
@@ -525,8 +525,9 @@ as easily as a frontend:
 - **Codes, not text.** Errors carry a stable `code`, and values are codes (`GB-ENG`, `Granted`), so callers
   (and the Welsh frontend) map them to text themselves.
 - **No user headers for service calls.** The `X-User-`* headers identify a person acting in a frontend.
-  Service-to-service reads (`read` scope) don't need them. Only endpoints marked `.RequireProducer()` or
-  `.RequireRegulator()` do.
+  Reads of shared data (fees, submission periods) don't need them. Only endpoints marked `.RequireProducer()` or
+  `.RequireRegulator()` do: commands, and reads of one organisation's data, where the handler also checks the
+  producer acts for that organisation.
 - **Document it.** Each endpoint has a summary and description in OpenAPI, so other teams can use
   `/swagger` (or the published spec) without asking.
 
@@ -545,15 +546,19 @@ as easily as a frontend:
 
 ## Tests
 
-| Kind | Example | Needs |
-|---|---|---|
-| Architecture | `ArchitectureTest` | Nothing |
-| Domain (most rule tests belong here) | `RegistrationSubmissionTest` | Nothing |
-| Handler | `RecordRegulatorDecisionHandlerTest`, `CreatePackagingSubmissionHandlerTest` (NSubstitute) | Nothing |
-| Endpoint (real host, in-memory repository) | `RegistrationEndpointsTest` | Nothing |
-| Database (Liquibase + EF on Postgres) | `ModuleSchemaTest` | Docker; skipped without it, as in the Dockerfile build |
-| Shared data parity (seeded rates and periods through the real handlers) | `FeesSchemaTest`, `SubmissionPeriodsSchemaTest` | Docker, as above |
-| Fee rules (cases ported from the payment service) | `ResubmissionFeeTest` | Nothing |
+The test project is foldered by type of test, then by module (`Platform` for auth, health, metrics and timeouts).
+The rules for where a test goes, and what belongs in the journey and performance test repos instead, are in
+`CLAUDE.md`, "Testing".
+
+| Folder | What it proves | Example | Needs |
+|---|---|---|---|
+| `Architecture/` | Module boundaries and endpoint conventions | `ArchitectureTest` | Nothing |
+| `Unit/` | Rules in the domain, a calculator or a handler (most rule tests belong here) | `RegistrationSubmissionTest`, `ResubmissionFeeTest`, `RecordRegulatorDecisionHandlerTest` (NSubstitute) | Nothing |
+| `Http/` | The HTTP layer: real host, with the handler or repository substituted | `RegistrationEndpointsTest` | Nothing |
+| `Database/` | SQL, the EF mapping and the seeded data, on Postgres built from the Liquibase changelog | `RegistrationDatabaseTest`, `FeesDatabaseTest`, `SubmissionPeriodsDatabaseTest` | Docker; skipped without it, as in the Dockerfile build |
+| `Integration/` | The real host and Postgres together | `PostgresHealthCheckTest` | Docker, as above |
+| `Contract/` | The v1 OpenAPI snapshot | `OpenApiTest` | Nothing |
+| `Support/` | Factories, fixtures and test data; no tests | `AclTestFactory`, `ChangelogDatabase` | |
 
 ## Where the patterns come from
 
