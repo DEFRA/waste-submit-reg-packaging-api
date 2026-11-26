@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SubmissionPeriods module (period_*): shared by every workflow module.
+
+  Both domains have a WHEN (when a submission can be made) and a WHAT (what it covers).
+
+  period_registration_submission_period  Registration. One row per window type and registration year
+                                         (CsoLargeProducer 2026 ...). Mirrors epr-payment-service's
+                                         [Lookup].[SubmissionPeriod] exactly: the WHEN dates are on the row.
+  period_packaging_submission_period     Packaging WHEN. One row per submission period ("July to December 2025"):
+                                         when its tile is visible, when it opens and its deadline. The name is the
+                                         key submissions store today. As in the packaging frontend's
+                                         SubmissionPeriods config (VisibleFrom, ActiveFrom, Deadline).
+  period_packaging_data_period           Packaging WHAT. One row per data period code (2025-H2, 2025-P0 ...), the
+                                         code in the POM file: what the data covers and who reports it (Large: H1,
+                                         H2, before 2025 P1 to P4; Small: P0). Each code is accepted in exactly one
+                                         submission period.
+
+  Packaging rules, as in EPR today: the dates belong to the submission period and are the same for every data
+  period, producer size and submitter type; producer size only decides which codes can be reported. There is no
+  closing date, and the deadline is shown to users but not enforced.
+
+  Naming: table = period_ + the domain name; the C# names are the same without the prefix
+  (period_packaging_data_period is read into PackagingDataPeriodRow).
+
+  Registration ids: registration data moves here from epr-payment-service, and its
+  RegistrationSubmissionData.SubmissionPeriodId is period_registration_submission_period.id. So the ids are copied,
+  never generated (a plain integer key, no identity), and are never renumbered or reused. New rows are added by a
+  changeset with explicit ids (the next is 13), in step with the payment service until registration moves.
+  See docs/decisions/0002-registration-data-from-payment-service.md.
+
+  The link from packaging to registration is registration_year: the data year + 1, the rule the frontend states to
+  users ("report your {year} packaging data before applying to register for {year + 1}"). The business owner must
+  confirm it. There is no foreign key, because a registration year has several rows (one per window type).
+
+  Data period sources: the codes, and which submission period accepts them, come from the POM validation
+  function's SubmissionPeriods config; the submission periods' dates from the packaging frontend's config.
+  Descriptions come from epr-data-sqldb's v_PoM_Codes (apps_submission_period), and data dates from
+  epr-calculator-api's submission_period_lookup (2024) or the description. For the part-year codes (2023-P2,
+  2024-P2, 2024-P3), v_PoM_Codes' other text says 1 Jan to 30 Jun; the dates here follow the calculator and the
+  description. To confirm with the PayCal team. Producer sizes before 2025 are to be confirmed with the business owner.
+
+  Validation error codes are not stored here: the validation project owns its error codes.
+
+  Time zones: registration dates are midnight UTC (timestamptz), as in the payment service. Packaging opening,
+  visible-from and deadline times are stored as written in the frontend config (timestamp without time zone,
+  understood as UK time). Whether to store UK time or UTC is an open question on the ticket.
+-->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="submission-periods-0001-tables" author="waste-submit-reg">
+        <sql>
+            CREATE TABLE period_registration_submission_period (
+                id                integer     NOT NULL CONSTRAINT pk_period_registration_submission_period PRIMARY KEY,
+                window_type       varchar(40) NOT NULL,
+                registration_year integer     NOT NULL,
+                opening_date      timestamptz NOT NULL,
+                deadline_date     timestamptz NOT NULL,
+                closing_date      timestamptz NOT NULL,
+                CONSTRAINT uq_period_registration_submission_period_window_type_year UNIQUE (window_type, registration_year),
+                CONSTRAINT ck_period_registration_submission_period_dates
+                    CHECK (opening_date &lt;= deadline_date AND deadline_date &lt;= closing_date)
+            );
+
+            CREATE TABLE period_packaging_submission_period (
+                -- The key the submissions API stores today, for example 'July to December 2025'.
+                name              varchar(50) NOT NULL CONSTRAINT pk_period_packaging_submission_period PRIMARY KEY,
+                -- The year the data is for.
+                year              integer     NOT NULL,
+                -- The tile is shown from visible_from_date and can be started from opening_date. The deadline is
+                -- shown to users. UK time.
+                visible_from_date timestamp   NOT NULL,
+                opening_date      timestamp   NOT NULL,
+                deadline_date     timestamp   NOT NULL,
+                registration_year integer     NOT NULL,
+                CONSTRAINT ck_period_packaging_submission_period_dates
+                    CHECK (visible_from_date &lt;= opening_date AND opening_date &lt;= deadline_date)
+            );
+
+            CREATE TABLE period_packaging_data_period (
+                code              varchar(10) NOT NULL CONSTRAINT pk_period_packaging_data_period PRIMARY KEY,
+                description       varchar(50) NOT NULL,
+                -- What the data covers. Inclusive dates.
+                start_date        date        NOT NULL,
+                end_date          date        NOT NULL,
+                producer_size     varchar(10) NOT NULL CONSTRAINT ck_period_packaging_data_period_producer_size
+                    CHECK (producer_size IN ('Large', 'Small')),
+                -- The submission period that accepts this code.
+                submission_period varchar(50) NOT NULL CONSTRAINT fk_period_packaging_data_period_submission_period
+                    REFERENCES period_packaging_submission_period (name),
+                CONSTRAINT ck_period_packaging_data_period_dates CHECK (start_date &lt;= end_date)
+            );
+
+            CREATE INDEX ix_period_packaging_data_period_submission_period
+                ON period_packaging_data_period (submission_period);
+        </sql>
+    </changeSet>
+
+    <changeSet id="submission-periods-0002-registration" author="waste-submit-reg">
+        <comment>The payment service's [Lookup].[SubmissionPeriod] rows, with the same ids and values.</comment>
+        <sql>
+            INSERT INTO period_registration_submission_period
+                (id, window_type, registration_year, opening_date, deadline_date, closing_date) VALUES
+                (11, 'Cso',                 2024, '2023-07-01Z', '2024-04-02Z', '2025-02-01Z'),
+                (12, 'Direct',              2024, '2023-07-01Z', '2024-04-02Z', '2025-01-01Z'),
+                (1,  'Cso',                 2025, '2024-07-01Z', '2025-04-02Z', '2026-02-01Z'),
+                (2,  'Direct',              2025, '2024-07-01Z', '2025-04-02Z', '2026-01-01Z'),
+                (3,  'CsoLargeProducer',    2026, '2025-07-01Z', '2025-10-02Z', '2027-01-29Z'),
+                (4,  'CsoSmallProducer',    2026, '2026-01-01Z', '2026-04-02Z', '2027-01-29Z'),
+                (5,  'DirectLargeProducer', 2026, '2025-07-01Z', '2025-10-02Z', '2027-01-01Z'),
+                (6,  'DirectSmallProducer', 2026, '2026-01-01Z', '2026-04-02Z', '2027-01-01Z'),
+                (7,  'CsoLargeProducer',    2027, '2026-07-01Z', '2026-10-02Z', '2028-01-29Z'),
+                (8,  'CsoSmallProducer',    2027, '2027-01-01Z', '2027-04-02Z', '2028-01-29Z'),
+                (9,  'DirectLargeProducer', 2027, '2026-07-01Z', '2026-10-02Z', '2028-01-01Z'),
+                (10, 'DirectSmallProducer', 2027, '2027-01-01Z', '2027-04-02Z', '2028-01-01Z');
+        </sql>
+    </changeSet>
+
+    <changeSet id="submission-periods-0003-packaging" author="waste-submit-reg">
+        <comment>
+            The submission periods and their dates are today's packaging frontend appsettings.json
+            (SubmissionPeriods, the effective production set); the codes each accepts are the POM validation
+            function's SubmissionPeriods.
+        </comment>
+        <sql>
+            INSERT INTO period_packaging_submission_period
+                (name, year, visible_from_date, opening_date, deadline_date, registration_year) VALUES
+                ('January to June 2023',  2023, '2023-07-01', '2023-07-01', '2023-10-01 23:59', 2024),
+                ('July to December 2023', 2023, '2024-01-01', '2024-01-01', '2024-04-01 23:59', 2024),
+                ('January to June 2024',  2024, '2024-07-01', '2024-07-01', '2024-10-01 23:59', 2025),
+                ('July to December 2024', 2024, '2025-01-01', '2025-01-01', '2025-04-01 23:59', 2025),
+                ('January to June 2025',  2025, '2025-07-01', '2025-07-01', '2025-10-01 23:59', 2026),
+                ('July to December 2025', 2025, '2026-01-01', '2026-01-01', '2026-04-01 23:59', 2026),
+                ('January to June 2026',  2026, '2026-04-01', '2026-04-01', '2026-10-01 23:59', 2027),
+                ('July to December 2026', 2026, '2026-12-01', '2027-01-01', '2027-04-01 23:59', 2027),
+                ('January to June 2027',  2027, '2027-06-01', '2027-07-01', '2027-10-01 23:59', 2028),
+                ('July to December 2027', 2027, '2027-12-01', '2028-01-01', '2028-04-01 23:59', 2028);
+
+            INSERT INTO period_packaging_data_period
+                (code, description, start_date, end_date, producer_size, submission_period) VALUES
+                ('2023-P1', 'January to June 2023',     '2023-01-01', '2023-06-30', 'Large', 'January to June 2023'),
+                ('2023-P2', 'March to June 2023',       '2023-03-01', '2023-06-30', 'Large', 'January to June 2023'),
+                ('2023-P3', 'July to December 2023',    '2023-07-01', '2023-12-31', 'Large', 'July to December 2023'),
+                ('2024-P1', 'January to June 2024',     '2024-01-01', '2024-06-30', 'Large', 'January to June 2024'),
+                ('2024-P2', 'April to June 2024',       '2024-04-01', '2024-06-30', 'Large', 'January to June 2024'),
+                ('2024-P3', 'May to June 2024',         '2024-05-01', '2024-06-30', 'Large', 'January to June 2024'),
+                ('2024-P4', 'July to December 2024',    '2024-07-01', '2024-12-31', 'Large', 'July to December 2024'),
+                ('2024-P0', 'January to December 2024', '2024-01-01', '2024-12-31', 'Small', 'July to December 2024'),
+                ('2025-H1', 'January to June 2025',     '2025-01-01', '2025-06-30', 'Large', 'January to June 2025'),
+                ('2025-H2', 'July to December 2025',    '2025-07-01', '2025-12-31', 'Large', 'July to December 2025'),
+                ('2025-P0', 'January to December 2025', '2025-01-01', '2025-12-31', 'Small', 'July to December 2025'),
+                ('2026-H1', 'January to June 2026',     '2026-01-01', '2026-06-30', 'Large', 'January to June 2026'),
+                ('2026-H2', 'July to December 2026',    '2026-07-01', '2026-12-31', 'Large', 'July to December 2026'),
+                ('2026-P0', 'January to December 2026', '2026-01-01', '2026-12-31', 'Small', 'July to December 2026'),
+                ('2027-H1', 'January to June 2027',     '2027-01-01', '2027-06-30', 'Large', 'January to June 2027'),
+                ('2027-H2', 'July to December 2027',    '2027-07-01', '2027-12-31', 'Large', 'July to December 2027'),
+                ('2027-P0', 'January to December 2027', '2027-01-01', '2027-12-31', 'Small', 'July to December 2027');
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -43,6 +43,8 @@ public static class ApplicationBuilderExtensions
     public static (int StatusCode, string Title) Describe(Exception exception) =>
         exception switch
         {
+            // The framework couldn't bind the request, for example an unknown enum value. It sets the status (400).
+            BadHttpRequestException badRequest => (badRequest.StatusCode, "The request is not valid"),
             // The resilience pipeline's total or attempt timeout ran out on a downstream HTTP call.
             TimeoutRejectedException => (StatusCodes.Status504GatewayTimeout, "A downstream service did not respond in time"),
             // HttpClient.Timeout ran out, which is the backstop for a response body that never finishes.

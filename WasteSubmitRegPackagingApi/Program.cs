@@ -1,4 +1,10 @@
 using WasteSubmitRegPackagingApi.Authentication;
+using WasteSubmitRegPackaging.Packaging;
+using WasteSubmitRegPackaging.Fees;
+using WasteSubmitRegPackaging.SubmissionPeriods;
+using WasteSubmitRegPackaging.Registration;
+using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
+using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Modules;
 using WasteSubmitRegPackagingApi.Describe.Endpoints;
 using WasteSubmitRegPackagingApi.Obligations.Endpoints;
 using WasteSubmitRegPackagingApi.Obligations.Services;
@@ -6,14 +12,12 @@ using WasteSubmitRegPackagingApi.Config;
 using WasteSubmitRegPackagingApi.Utils;
 using WasteSubmitRegPackagingApi.Utils.ErrorHandling;
 using WasteSubmitRegPackagingApi.Utils.Http;
-using WasteSubmitRegPackagingApi.Utils.Mongo;
 using WasteSubmitRegPackagingApi.Utils.Postgres;
 using System.Diagnostics.CodeAnalysis;
 using WasteSubmitRegPackagingApi.Utils.Logging;
 using WasteSubmitRegPackagingApi.Utils.Metrics;
+using WasteSubmitRegPackagingApi.Utils.OpenApi;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using MongoDB.Driver;
-using MongoDB.Driver.Authentication.AWS;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -60,8 +64,8 @@ static void ConfigureServices(WebApplicationBuilder builder)
 
     ConfigureHeaderPropagation(services, configuration);
     ConfigureHttpClients(services);
-    ConfigureMongo(services, configuration);
     ConfigurePostgres(services, configuration);
+    ConfigureModules(services, configuration);
     ConfigureCommonDataApi(services, configuration);
     ConfigureOpenApi(services);
 
@@ -97,29 +101,18 @@ static void ConfigureHttpClients(IServiceCollection services)
 }
 
 [ExcludeFromCodeCoverage]
-static void ConfigureMongo(IServiceCollection services, IConfiguration configuration)
-{
-
-    MongoExtensions.Register();
-    MongoConventions.Register();
-
-    services
-        .AddOptions<MongoConfig>()
-        .Bind(configuration.GetRequiredSection("Mongo"))
-        .ValidateDataAnnotations()
-        .ValidateOnStart();
-
-    services.AddSingleton<IMongoDbClientFactory, MongoDbClientFactory>();
-}
-
-[ExcludeFromCodeCoverage]
 static void ConfigurePostgres(IServiceCollection services, IConfiguration configuration)
 {
-    services
+    var postgres = services
         .AddOptions<PostgresConfig>()
         .Bind(configuration.GetRequiredSection("Postgres"))
-        .ValidateDataAnnotations()
-        .ValidateOnStart();
+        .ValidateDataAnnotations();
+
+    // The build starts the app to write the OpenAPI documents, with no database settings. It never connects.
+    if (!OpenApiBuild.IsRunning)
+    {
+        postgres.ValidateOnStart();
+    }
 
     services.AddSingleton(serviceProvider =>
         PostgresDataSourceFactory.Create(serviceProvider.GetRequiredService<IOptions<PostgresConfig>>().Value));
@@ -150,15 +143,51 @@ static void ConfigureCommonDataApi(IServiceCollection services, IConfiguration c
 }
 
 [ExcludeFromCodeCoverage]
+static void ConfigureModules(IServiceCollection services, IConfiguration configuration)
+{
+    // Each business area is a module with its own project, tables (reg_*, pkg_*) and endpoints.
+    // The host only wires them up. See docs/project_architecture.md.
+    services.AddSharedKernel(configuration);
+    services.AddRegistrationModule();
+    services.AddPackagingModule();
+    services.AddFeesModule();
+    services.AddSubmissionPeriodsModule();
+}
+
+[ExcludeFromCodeCoverage]
 static void ConfigureOpenApi(IServiceCollection services)
 {
-    services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
+    // Two documents. "v1" is the published contract: it's merged, and frontends generate clients from it. It leaves
+    // out endpoints marked .Unpublished() (samples included). "unpublished" has only those, so they can still be seen
+    // and called from Swagger. The build writes them to openapi.json and openapi_unpublished.json (see the csproj).
+    services.AddOpenApi(OpenApiDocuments.V1, options =>
     {
-        document.Info.Title = "Waste Submit Reg Packaging API";
-        document.Info.Description =
-            "Aggregated packaging data from approved submissions, for the Obligations service. Serves stub data for now.";
-        return Task.CompletedTask;
-    }));
+        options.ShouldInclude = description => !IsUnpublished(description);
+        options.AddDocumentTransformer((document, _, _) =>
+        {
+            document.Info.Title = "Waste Submit Reg Packaging API";
+            document.Info.Description =
+                "Packaging and registration data for EPR. The obligations endpoints serve aggregated packaging data from " +
+                "approved submissions. Endpoints that aren't published yet are in the unpublished document.";
+            return Task.CompletedTask;
+        }).AddSwaggerAuthTransformers();
+    });
+
+    services.AddOpenApi(OpenApiDocuments.Unpublished, options =>
+    {
+        options.ShouldInclude = IsUnpublished;
+        options.AddDocumentTransformer((document, _, _) =>
+        {
+            document.Info.Title = "Waste Submit Reg Packaging API: unpublished";
+            document.Info.Description =
+                "Endpoints that aren't published yet, including the SAMPLE registration, regulator and packaging " +
+                "submission endpoints. They may change, so don't generate clients from this document.";
+            return Task.CompletedTask;
+        }).AddSwaggerAuthTransformers();
+    });
+
+    static bool IsUnpublished(Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription description) =>
+        description.ActionDescriptor.EndpointMetadata.OfType<UnpublishedEndpointMetadata>().Any();
 }
 
 [ExcludeFromCodeCoverage]
@@ -166,13 +195,21 @@ static void ConfigureMiddleware(WebApplication app)
 {
     // Outside the error handler, so the request log records the status the caller gets (such as 504), not 500.
     app.UseSerilogRequestLogging();
-    // Outside authentication, so rejected requests are counted with the status the caller got.
-    app.UseRequestMetrics();
+    // Outside authentication, so rejected requests are counted with the status the caller got. Skipped when the
+    // build starts the app to write the OpenAPI documents: that run has no AWS_EMF_NAMESPACE and serves no requests.
+    if (!OpenApiBuild.IsRunning)
+    {
+        app.UseRequestMetrics();
+    }
 
     // Problem responses for unhandled exceptions, including 504 when a downstream call times out.
     app.UseErrorHandling();
 
     app.UseHeaderPropagation();
+
+    // Endpoints marked .Unpublished() are a 404 unless this is on: locally, and wherever cdp-app-config turns it on.
+    // Before authentication, so callers get a 404 whether or not they send credentials.
+    app.UseUnpublishedEndpointGate(app.Configuration.GetValue<bool>("UnpublishedEndpoints:Enabled"));
 
     app.UseAuthentication();
     app.UseAuthorization();
@@ -182,7 +219,7 @@ static void ConfigureMiddleware(WebApplication app)
 static void ConfigureEndpoints(WebApplication app)
 {
     // CDP polls /health to decide whether the container is alive, so it leaves out the database.
-    // Health checks must never require authentication; HealthEndpointsAnonymousTest guards this.
+    // Health checks must never require authentication; HealthEndpointsAnonymousTest and EndpointConventionsTest guard this.
     app.MapHealthChecks("/health", new HealthCheckOptions
     {
         Predicate = check => !check.Tags.Contains(PostgresHealthChecks.Tag)
@@ -196,13 +233,35 @@ static void ConfigureEndpoints(WebApplication app)
     // Off in production. Swagger:Enabled turns it on per environment.
     if (app.Configuration.GetValue<bool>("Swagger:Enabled"))
     {
-        app.MapOpenApi();
+        var unpublishedEnabled = app.Configuration.GetValue<bool>("UnpublishedEndpoints:Enabled");
+
+        // The unpublished document is a 404 wherever its endpoints are, so it never describes endpoints nobody can call.
+        app.MapOpenApi().AddEndpointFilter(async (context, next) =>
+            !unpublishedEnabled
+            && OpenApiDocuments.Unpublished.Equals(context.HttpContext.GetRouteValue("documentName") as string, StringComparison.OrdinalIgnoreCase)
+                ? Results.NotFound()
+                : await next(context));
 
         // Relative, so the page still finds the document behind CDP's /{service-name} path prefix.
-        app.UseSwaggerUI(options => options.SwaggerEndpoint("../openapi/v1.json", "Waste Submit Reg Packaging API"));
+        app.UseSwaggerUI(options =>
+        {
+            options.SwaggerEndpoint($"../openapi/{OpenApiDocuments.V1}.json", "Waste Submit Reg Packaging API");
+            if (unpublishedEnabled)
+            {
+                options.SwaggerEndpoint($"../openapi/{OpenApiDocuments.Unpublished}.json", "Unpublished");
+            }
+
+            // Keeps the Authorize credentials when the page reloads.
+            options.EnablePersistAuthorization();
+        });
     }
 
     app.MapObligationsEndpoints();
 
     app.MapDescribeEndpoints();
+
+    app.MapRegistrationEndpoints();
+    app.MapPackagingEndpoints();
+    app.MapFeesEndpoints();
+    app.MapSubmissionPeriodsEndpoints();
 }

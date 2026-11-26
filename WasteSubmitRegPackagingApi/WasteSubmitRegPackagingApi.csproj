@@ -5,12 +5,19 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <!-- Every build writes the OpenAPI documents next to this file: openapi.json (v1, for frontends) and
+         openapi_unpublished.json. They're gitignored; CI publishes openapi.json as an artifact. As Manage Obligations. -->
+    <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name openapi</OpenApiGenerateDocumentsOptions>
   </PropertyGroup>
 
   <ItemGroup>
     <Content Include="..\.dockerignore">
       <Link>.dockerignore</Link>
     </Content>
+    <!-- The generated OpenAPI documents are build output, not part of the app. -->
+    <Content Remove="openapi*.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,9 +28,11 @@
     <PackageReference Include="Elastic.Serilog.Enrichers.Web" Version="9.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.HeaderPropagation" Version="10.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.12">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
-    <PackageReference Include="MongoDB.Driver" Version="3.8.1" />
-    <PackageReference Include="MongoDB.Driver.Authentication.AWS" Version="3.8.1" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Enrichers.ClientInfo" Version="2.9.0" />
@@ -34,5 +43,13 @@
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.0" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <ProjectReference Include="..\WasteSubmitRegPackaging.SharedKernel.Infrastructure\WasteSubmitRegPackaging.SharedKernel.Infrastructure.csproj" />
+    <ProjectReference Include="..\WasteSubmitRegPackaging.Registration\WasteSubmitRegPackaging.Registration.csproj" />
+    <ProjectReference Include="..\WasteSubmitRegPackaging.Packaging\WasteSubmitRegPackaging.Packaging.csproj" />
+    <ProjectReference Include="..\WasteSubmitRegPackaging.Fees\WasteSubmitRegPackaging.Fees.csproj" />
+    <ProjectReference Include="..\WasteSubmitRegPackaging.SubmissionPeriods\WasteSubmitRegPackaging.SubmissionPeriods.csproj" />
+  </ItemGroup>
 
 </Project>

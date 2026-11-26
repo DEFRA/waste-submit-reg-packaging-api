@@ -7,5 +7,8 @@ public static class Scopes
 {
     public const string Read = "read";
 
-    public static readonly IReadOnlyList<string> All = [Read];
+    /// <summary>Commands: the module endpoints that change state.</summary>
+    public const string Write = "write";
+
+    public static readonly IReadOnlyList<string> All = [Read, Write];
 }

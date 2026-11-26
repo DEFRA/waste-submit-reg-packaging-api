@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The SubmissionPeriods module (period_*): registration submission periods with their windows, and
+    packaging submission periods, each linked to one registration submission period. Shared by every
+    workflow module.
+
+    The data is owned by Liquibase changesets (changelog/changes/submission-periods/), not by the
+    service: the module only reads it. Other modules may join to the period_* tables and hold foreign
+    keys to them; in C# they use WasteSubmitRegPackaging.SubmissionPeriods.Contracts.
+
+    Same layout as the other modules (Application / Infrastructure / Endpoints), with no Domain: there are
+    no rules here. Its query reads the period_* tables in SQL (Database.SqlQuery).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WasteSubmitRegPackaging.SharedKernel\WasteSubmitRegPackaging.SharedKernel.csproj" />
+    <ProjectReference Include="..\WasteSubmitRegPackaging.SharedKernel.Infrastructure\WasteSubmitRegPackaging.SharedKernel.Infrastructure.csproj" />
+    <ProjectReference Include="..\WasteSubmitRegPackaging.SubmissionPeriods.Contracts\WasteSubmitRegPackaging.SubmissionPeriods.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="WasteSubmitRegPackagingApi.Test" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+
+</Project>

@@ -1,15 +1,14 @@
-﻿{
+{
   "profiles": {
     "WasteSubmitRegPackagingApi": {
       "commandName": "Project",
       "dotnetRunMessages": false,
-      "launchBrowser": false,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
       "applicationUrl": "http://localhost:8085",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "AWS_EMF_ENVIRONMENT": "Local",
-        "Mongo__DatabaseUri": "mongodb://127.0.0.1:27017/",
-        "Mongo__DatabaseName": "waste-submit-reg-packaging-api"
+        "AWS_EMF_ENVIRONMENT": "Local"
       }
     }
   }

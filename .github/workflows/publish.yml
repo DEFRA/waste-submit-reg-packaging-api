@@ -36,6 +36,13 @@ jobs:
         uses: DEFRA/cdp-build-action/build@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      # Makes ./changelog available to "Apply Changelog" in the CDP Portal, with the same version as the
+      # build. Only publishes when the changelog has changed. Nothing is applied to a database here.
+      - name: Publish Database Schema
+        uses: DEFRA/cdp-build-action/publish-db-migrations@main
+        with:
+          path: ./changelog
+          github-token: ${{ secrets.GITHUB_TOKEN }}
   ## SonarCloud
   ## Uncomment to enable SonarCloud scan
   ## Requires project to be set up in SonarCloud

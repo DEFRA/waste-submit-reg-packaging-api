@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Registration module (reg_*). SAMPLE schema for the skeleton; the real model follows the gap analysis.
+  Enums are stored as text with CHECK constraints, not PG enum types, which are hard to change later.
+-->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="registration-0001-registration-submission" author="waste-submit-reg">
+        <sql>
+            CREATE TABLE reg_registration_submission (
+                id                            uuid        NOT NULL CONSTRAINT pk_reg_registration_submission PRIMARY KEY,
+                organisation_id               uuid        NOT NULL,
+                compliance_scheme_id          uuid,
+                registration_year             integer     NOT NULL,
+                journey                       varchar(40) NOT NULL CONSTRAINT ck_reg_registration_submission_journey
+                    CHECK (journey IN ('DirectLargeProducer', 'DirectSmallProducer', 'CsoLargeProducer', 'CsoSmallProducer', 'CsoLegacy')),
+                -- The Nations id used everywhere in EPR: 1 GB-ENG, 2 GB-SCT, 3 GB-WLS, 4 GB-NIR.
+                nation_id                     smallint    NOT NULL CONSTRAINT ck_reg_registration_submission_nation_id
+                    CHECK (nation_id BETWEEN 1 AND 4),
+                application_reference_number  varchar(50) NOT NULL
+                    CONSTRAINT uq_reg_registration_submission_application_reference_number UNIQUE
+                    CONSTRAINT ck_reg_registration_submission_application_reference_upper
+                        CHECK (application_reference_number = upper(application_reference_number)),
+                status                        varchar(40) NOT NULL CONSTRAINT ck_reg_registration_submission_status
+                    CHECK (status IN ('InProgress', 'SubmittedForApproval', 'Queried', 'Granted', 'Refused', 'Cancelled')),
+                created_by_user_id            uuid        NOT NULL,
+                created_at                    timestamptz NOT NULL,
+                submitted_for_approval_at     timestamptz,
+                latest_decision_at            timestamptz
+            );
+
+            CREATE INDEX ix_reg_registration_submission_organisation_year
+                ON reg_registration_submission (organisation_id, registration_year);
+        </sql>
+    </changeSet>
+
+    <changeSet id="registration-0002-registration-submission-event" author="waste-submit-reg">
+        <comment>The append-only history: who did what, and when.</comment>
+        <sql>
+            CREATE TABLE reg_registration_submission_event (
+                id                         uuid          NOT NULL CONSTRAINT pk_reg_registration_submission_event PRIMARY KEY,
+                registration_submission_id uuid          NOT NULL CONSTRAINT fk_reg_registration_submission_event_submission
+                    REFERENCES reg_registration_submission (id),
+                event_type                 varchar(40)   NOT NULL CONSTRAINT ck_reg_registration_submission_event_event_type
+                    CHECK (event_type IN ('Started', 'ApplicationSubmitted', 'Granted', 'Refused', 'Queried', 'Cancelled')),
+                user_id                    uuid          NOT NULL,
+                user_type                  varchar(20)   NOT NULL CONSTRAINT ck_reg_registration_submission_event_user_type
+                    CHECK (user_type IN ('Producer', 'Regulator')),
+                comments                   varchar(4000),
+                effective_date             timestamptz,
+                occurred_at                timestamptz   NOT NULL
+            );
+
+            CREATE INDEX ix_reg_registration_submission_event_submission_occurred
+                ON reg_registration_submission_event (registration_submission_id, occurred_at);
+        </sql>
+    </changeSet>
+
+    <changeSet id="registration-0003-outbox-message" author="waste-submit-reg">
+        <sql>
+            CREATE TABLE reg_outbox_message (
+                id           uuid          NOT NULL CONSTRAINT pk_reg_outbox_message PRIMARY KEY,
+                type         varchar(200)  NOT NULL,
+                payload      jsonb         NOT NULL,
+                occurred_at  timestamptz   NOT NULL,
+                processed_at timestamptz,
+                attempts     integer       NOT NULL DEFAULT 0,
+                error        varchar(2000)
+            );
+
+            -- The dispatcher only ever looks for unprocessed rows.
+            CREATE INDEX ix_reg_outbox_message_unprocessed ON reg_outbox_message (occurred_at) WHERE processed_at IS NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
