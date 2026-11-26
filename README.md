@@ -408,6 +408,9 @@ Builds run in GitHub Actions, and deployments happen in the [CDP Portal](https:/
    once, so promoting means deploying the same version to the next environment.
    - The service page's **Automations** tab can deploy every new version to dev, test or perf-test automatically.
    - Production is always deployed by hand. CDP does not allow automatic deployments to prod.
+   - The same tab's **Test Runs** runs a test suite after each deployment. Add `waste-submit-journey-tests` there with
+     Profile `api`: it then checks that every published endpoint of the deployed API answers, without running the
+     frontend journeys.
 4. **Hotfix.** If prod needs a fix but `main` has moved on, [publish-hotfix.yml](.github/workflows/publish-hotfix.yml)
    builds a patch of an older version from a branch. See CDP's
    [Hotfix Builds](https://portal.cdp-int.defra.cloud/documentation/how-to/hotfix-builds.md) guide.
