@@ -1,4 +1,3 @@
-using WasteSubmitRegPackaging.Fees.Contracts;
 using WasteSubmitRegPackaging.Packaging.Domain;
 using WasteSubmitRegPackaging.SharedKernel.Messaging;
 using WasteSubmitRegPackaging.SharedKernel.Results;
@@ -6,28 +5,20 @@ using WasteSubmitRegPackaging.SharedKernel.Users;
 
 namespace WasteSubmitRegPackaging.Packaging.Application.Commands.RecordPackagingResubmissionFeePayment;
 
-/// <param name="Regulator">SAMPLE: passed in, because the submission doesn't hold the submitter's nation yet.</param>
-/// <param name="MemberCount">SAMPLE: passed in. Today it comes from epr-common-data-api. Ignored for a direct producer.</param>
-/// <param name="PreviousPayments">SAMPLE: passed in, in pence. Payments stay in epr-payment-service until they move.</param>
 internal sealed record RecordPackagingResubmissionFeePaymentCommand(
-    ProducerUser Producer,
-    PackagingSubmissionId PackagingSubmissionId,
-    PaymentMethod PaymentMethod,
-    RegulatorNation Regulator,
-    int MemberCount,
-    decimal PreviousPayments) : ICommand<PackagingSubmissionView>;
+    ProducerUser Producer, PackagingSubmissionId PackagingSubmissionId, string PaymentReference)
+    : ICommand<PackagingSubmissionView>;
 
 /// <summary>
-/// Resubmissions only: the producer chooses how to pay, and the fee for this cycle is fixed at that moment. Fees works
-/// the fee out (<see cref="IFeesApi"/>); this module stores it as the cycle's snapshot, in the same transaction.
-/// See "Fees in a workflow" in docs/project_architecture.md. No payment is taken here.
+/// PLACEHOLDER for the fee step. Resubmissions only: it records a payment reference on the cycle, which moves the
+/// workflow on to submitting. It works out no fee and takes no payment.
 ///
-/// To show the fee before this step, a screen calls <c>POST /fees/packaging-resubmission</c>.
+/// What fills it in: the fee is worked out by the Fees module from what the file says (the regulator, the members),
+/// and the payment is captured in the payment table ported from epr-payment-service, which this reference points to.
+/// The step, and where it sits in the workflow, stay as they are. See docs/packaging_workflow.md.
 /// </summary>
 internal sealed class RecordPackagingResubmissionFeePaymentHandler(
-    IPackagingSubmissionRepository repository,
-    IFeesApi fees,
-    TimeProvider timeProvider)
+    IPackagingSubmissionRepository repository, TimeProvider timeProvider)
     : ICommandHandler<RecordPackagingResubmissionFeePaymentCommand, PackagingSubmissionView>
 {
     public async Task<Result<PackagingSubmissionView>> HandleAsync(
@@ -40,24 +31,7 @@ internal sealed class RecordPackagingResubmissionFeePaymentHandler(
         if (!command.Producer.ActsFor(submission.OrganisationId))
             return PackagingErrors.NotYourOrganisation;
 
-        // Before working the fee out: a fee for a first submission, or a second fee for a cycle, is a 409.
-        if (submission.NextStep() != PackagingNextStep.PayResubmissionFee)
-            return PackagingErrors.StepNotAvailable(PackagingNextStep.PayResubmissionFee, submission.NextStep());
-
-        var now = timeProvider.GetUtcNow();
-
-        var fee = await fees.CalculatePackagingResubmissionFeeAsync(
-            new PackagingResubmissionFeeInput(
-                submission.ComplianceSchemeId is null ? Submitter.Producer : Submitter.ComplianceScheme,
-                command.Regulator,
-                now,
-                command.MemberCount,
-                command.PreviousPayments),
-            cancellationToken);
-        if (fee.IsFailure)
-            return fee.Error;
-
-        var recorded = submission.RecordResubmissionFeePayment(command.PaymentMethod, fee.Value, now);
+        var recorded = submission.RecordResubmissionFeePayment(command.PaymentReference, timeProvider.GetUtcNow());
         if (recorded.IsFailure)
             return recorded.Error;
 

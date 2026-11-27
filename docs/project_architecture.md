@@ -20,7 +20,8 @@ endpoints (`/registrations`, `/regulator/registrations`, `/packaging/submissions
 `.AsSample(...)`, which adds a "SAMPLE:" description and keeps them out of the v1 OpenAPI document. They're in the
 `unpublished` one (see the README, "Publishing an endpoint"). They give the structure now and will be developed in due
 course, so no frontend or service should build against them yet. The Manage Obligations endpoints (`/packaging/{packagingYear}/...`)
-are real and aren't marked. The v1 snapshot (`OpenApiTest`) shows what is published. Fees and SubmissionPeriods are **real**: their tables,
+are real and aren't marked. The Packaging sample is the whole packaging data workflow, built thin: see
+[packaging_workflow.md](packaging_workflow.md). The v1 snapshot (`OpenApiTest`) shows what is published. Fees and SubmissionPeriods are **real**: their tables,
 data and the resubmission fee calculation are ported from epr-payment-service and today's config, with parity tests.
 
 The patterns are standard .NET ones. See [Where the patterns come from](#where-the-patterns-come-from).
@@ -178,7 +179,7 @@ To find code, start from the use case folder: everything one endpoint does is in
   foreign keys to them (for example a packaging submission → a `period_packaging_data_period` code). Only their Liquibase changesets
   change them.
 - **There are no foreign keys between the workflow modules.** Store the other module's ID or key (for example
-  `pkg_packaging_submission.registration_year`). Reads may join across them, but writes never cross. See
+  `pkg_packaging_submission.registration_year` and `submission_period`). Reads may join across them, but writes never cross. See
   [Questions that combine domains](#questions-that-combine-domains).
 
 ## Anatomy of a use case
@@ -220,7 +221,7 @@ Exceptions are kept for bugs and infrastructure faults, and become a 500.
 ## Commands, queries and state
 
 - Commands go through the aggregate and a repository. Queries read the module's DbContext, either in LINQ
-  with `AsNoTracking()` (see `GetPackagingSubmission`) or in SQL with `Database.SqlQuery` (see
+  with `AsNoTracking()` (see `GetRegistrationSubmission`) or in SQL with `Database.SqlQuery` (see
   `GetPackagingSubmissionPeriods`), and map into view models. See [Data access](#data-access-linq-or-sql-both-in-ef-core).
 - **State is stored, not recalculated.** The aggregate keeps its current `Status`, and history is an append-only
   table. That's the main change from today's Cosmos/Synapse model, where every read replays events, and that
@@ -326,7 +327,7 @@ Writes always go through the domain classes and `SaveChanges`.
 |---|---|---|
 | **Use it for** | Commands, and queries over the module's own tables | Queries that are clearer as SQL: joins across tables, reports, questions that combine domains, anything an analyst should be able to read |
 | **Reads into** | Domain classes (when a rule is needed) or a view, with `.Select(...)` | A row class shaped like the SELECT, then mapped to the view |
-| **Example** | `StartRegistration`, `GetPackagingSubmission` | `GetPackagingSubmissionPeriods` |
+| **Example** | `StartRegistration`, `GetRegistrationSubmission` | `GetPackagingSubmissionPeriods` |
 
 **Why not Dapper as well?** Some teams use EF Core for writes and Dapper for reads (Microsoft's 2017
 eShopOnContainers did). That was mostly because older EF Core couldn't run SQL into a plain class. EF Core 8 added
@@ -450,29 +451,32 @@ SubmissionPeriods (period_*):
 
 Fees **works out** fees, and the workflow that charges them **stores** them. This follows the
 registration improvement already made in epr-payment-service (`RegistrationFeeSnapshot` and
-`RegistrationFeeLineItem`). Packaging follows the same pattern when its workflow is built:
+`RegistrationFeeLineItem`). **Packaging doesn't do this yet:** its fee step is a placeholder that records a payment
+reference (see [packaging_workflow.md](packaging_workflow.md)). This is the pattern for when it is built:
 
 ```
-Packaging command (for example "submit a resubmission")
+Packaging command (the resubmission fee step, RecordPackagingResubmissionFeePayment)
   1. Load the submission (the aggregate).
-  2. Call IFeesApi.CalculatePackagingResubmissionFeeAsync(input)
+  2. Call IFeesApi.CalculatePackagingResubmissionFeeAsync(input), with inputs read from what the file says,
+     not taken from the caller
        --> Fees looks up the rate and runs the pure calculator
        <-- fee lines (rate id, fee type, unit price, quantity, amount)
-  3. Call submission.Submit(..., feeLines): status change, history row, fee snapshot, domain event.
-  4. SaveChanges in one transaction: the submission, its events, pkg_fee_snapshot + pkg_fee_line_item, the outbox.
+  3. Record the fee on the current cycle as its snapshot.
+  4. SaveChanges in one transaction: the cycle and its fee lines.
 ```
 
 - **Fees stores nothing per submission.** The calculator is pure, so the same inputs always give the same
   lines. That's how parity with epr-payment-service is tested (`ResubmissionFeeTest`, `FeesDatabaseTest`).
-- **The workflow owns its snapshot.** That's `pkg_fee_snapshot` and `pkg_fee_line_item` (later `reg_...` tables with
-  the same shape), saved with the status change.
+- **The workflow owns its snapshot.** In Packaging it belongs to the cycle (`pkg_submission_cycle`), with a table
+  for the lines (later `reg_...` tables with the same shape).
   - A line copies the unit price and description, so a later rate change can't alter what was charged.
   - It keeps a foreign key to the rate and the fee type, which is allowed because the fee tables are shared.
-  - There is one snapshot per submission (or per resubmission), and it is never recalculated.
+  - There is one snapshot per resubmission cycle, and it is never recalculated.
 - **The outstanding amount is worked out when it's needed**, as the snapshot total less the payments linked to
-  the submission, so it can't go out of date. Until payments move to CDP, the caller passes previous payments in.
-- **Events** follow the registration pattern: a stored status, an append-only `pkg_*_event` history table, and
-  an outbox event. Nothing is recalculated by replaying events.
+  the submission, so it can't go out of date. Payments will be held in the payment table ported from
+  epr-payment-service; a cycle's `payment_reference` is the link to it.
+- **Events**: a stored status and an outbox event, as Registration. Packaging has no separate history table: its
+  file and cycle rows are the history. Nothing is recalculated by replaying events.
 
 ## Questions that combine domains
 
@@ -499,8 +503,7 @@ For example (illustrative, because the workflow tables are still samples):
 SELECT p.id AS packaging_submission_id, pps.name AS packaging_submission_period,
        r.id AS registration_submission_id, r.registration_year, r.status
 FROM pkg_packaging_submission p
-JOIN period_packaging_data_period pdp ON pdp.code = p.period_code
-JOIN period_packaging_submission_period pps ON pps.name = pdp.submission_period
+JOIN period_packaging_submission_period pps ON pps.name = p.submission_period
 LEFT JOIN reg_registration_submission r
        ON r.organisation_id = p.organisation_id AND r.registration_year = pps.registration_year
 WHERE p.organisation_id = @organisationId;

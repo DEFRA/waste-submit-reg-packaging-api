@@ -10,6 +10,7 @@ using WasteSubmitRegPackaging.Packaging.Application.Commands.RecordPackagingRegu
 using WasteSubmitRegPackaging.Packaging.Application.Commands.RecordPackagingResubmissionFeePayment;
 using WasteSubmitRegPackaging.Packaging.Application.Commands.StartPackagingFileUpload;
 using WasteSubmitRegPackaging.Packaging.Application.Commands.SubmitPackagingSubmission;
+using WasteSubmitRegPackaging.Packaging.Application.Commands.ValidatePackagingFile;
 using WasteSubmitRegPackaging.Packaging.Application.Queries.GetPackagingSubmission;
 using WasteSubmitRegPackaging.Packaging.Domain;
 using WasteSubmitRegPackaging.SharedKernel.Infrastructure.Http;
@@ -53,7 +54,7 @@ internal static class PackagingSubmissionEndpoints
 
         producer.MapPost("/{packagingSubmissionId:guid}/resubmission-fee-payment", RecordPackagingResubmissionFeePayment)
             .WithName("RecordPackagingResubmissionFeePayment")
-            .WithSummary("Resubmissions only: fix the fee and record how it will be paid (sample)")
+            .WithSummary("Resubmissions only: record the payment reference for the fee (sample, placeholder)")
             .RequireAuthorization(ModulePolicies.Write)
             .RequireProducer();
 
@@ -132,6 +133,7 @@ internal static class PackagingSubmissionEndpoints
         string token,
         PackagingFileScanResultRequest request,
         [FromServices] ICommandHandler<RecordPackagingFileScanResultCommand, Unit> handler,
+        [FromServices] ICommandHandler<ValidatePackagingFileCommand, Unit> validate,
         CancellationToken cancellationToken)
     {
         var file = request.Form!.File!;
@@ -145,7 +147,17 @@ internal static class PackagingSubmissionEndpoints
             new RecordPackagingFileScanResultCommand(fileId, token, file.Filename, stored, file.ErrorMessage),
             cancellationToken);
 
-        return result.IsSuccess ? TypedResults.NoContent() : result.Error.ToProblem();
+        if (result.IsFailure)
+            return result.Error.ToProblem();
+
+        // PLACEHOLDER trigger for validation. The file is stored and saved as Validating; validating it is a separate
+        // command, started here only because the placeholder validator is instant. When validation is real, delete
+        // this line and have a background worker call the same command. Nothing else changes. Its result isn't the
+        // uploader's concern: a file that is no longer Validating (a repeated callback) is simply left alone.
+        if (stored is not null)
+            await validate.HandleAsync(new ValidatePackagingFileCommand(fileId), cancellationToken);
+
+        return TypedResults.NoContent();
     }
 
     private static async Task<Results<Ok<PackagingSubmissionView>, ProblemHttpResult>> RecordPackagingResubmissionFeePayment(
@@ -159,10 +171,7 @@ internal static class PackagingSubmissionEndpoints
             new RecordPackagingResubmissionFeePaymentCommand(
                 currentUser.Producer!,
                 new PackagingSubmissionId(packagingSubmissionId),
-                request.PaymentMethod!.Value,
-                request.Regulator!.Value,
-                request.MemberCount,
-                request.PreviousPayments),
+                request.PaymentReference!),
             cancellationToken);
 
         return result.IsSuccess ? TypedResults.Ok(result.Value) : result.Error.ToProblem();

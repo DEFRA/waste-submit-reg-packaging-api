@@ -3,7 +3,7 @@ namespace WasteSubmitRegPackaging.Packaging.Domain;
 /// <summary>What the uploader stored: the result of a successful scan.</summary>
 internal sealed record StoredFile(string FileName, string S3Bucket, string S3Key);
 
-/// <summary>The result of checking a stored file. A file with any errors can't be submitted; warnings don't block.</summary>
+/// <summary>The result of validating a stored file. A file with any errors can't be submitted; warnings don't block.</summary>
 internal sealed record PackagingFileCheck(int ErrorCount, int WarningCount)
 {
     public static readonly PackagingFileCheck Passed = new(0, 0);
@@ -61,15 +61,23 @@ internal sealed class SubmissionFile
     /// <summary>When the uploader reported back.</summary>
     public DateTimeOffset? ScannedAt { get; private set; }
 
-    internal void Store(StoredFile stored, PackagingFileCheck check, DateTimeOffset now)
+    public DateTimeOffset? ValidatedAt { get; private set; }
+
+    internal void Store(StoredFile stored, DateTimeOffset now)
     {
         FileName = stored.FileName;
         S3Bucket = stored.S3Bucket;
         S3Key = stored.S3Key;
+        Status = PackagingFileStatus.Validating;
+        ScannedAt = now;
+    }
+
+    internal void RecordValidation(PackagingFileCheck check, DateTimeOffset now)
+    {
         ErrorCount = check.ErrorCount;
         WarningCount = check.WarningCount;
         Status = check.ErrorCount > 0 ? PackagingFileStatus.Invalid : PackagingFileStatus.Valid;
-        ScannedAt = now;
+        ValidatedAt = now;
     }
 
     internal void Reject(string? fileName, string? reason, DateTimeOffset now)

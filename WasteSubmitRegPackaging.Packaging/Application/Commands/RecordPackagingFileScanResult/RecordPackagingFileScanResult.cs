@@ -17,12 +17,11 @@ internal sealed record RecordPackagingFileScanResultCommand(
 /// The callback has no credentials and no user. The file id in the URL says which upload it is for, and so which
 /// submission; the token in the URL proves the caller was given that URL. A repeated callback changes nothing.
 ///
-/// A stored file is checked here, in the request. When validation is real and slow it will move to the background,
-/// and the file will need a status between Uploading and Valid; see docs/packaging_workflow.md.
+/// It only records what the uploader said. A stored file is left <c>Validating</c>; validating it is a separate
+/// step (<c>ValidatePackagingFile</c>), so the uploader is answered at once however long validation takes.
 /// </summary>
 internal sealed class RecordPackagingFileScanResultHandler(
     IPackagingSubmissionRepository repository,
-    IPackagingFileValidator validator,
     TimeProvider timeProvider)
     : ICommandHandler<RecordPackagingFileScanResultCommand, Unit>
 {
@@ -41,7 +40,7 @@ internal sealed class RecordPackagingFileScanResultHandler(
         var now = timeProvider.GetUtcNow();
 
         if (command.Stored is { } stored)
-            submission.RecordFileStored(file, stored, await validator.CheckAsync(stored, cancellationToken), now);
+            submission.RecordFileStored(file, stored, now);
         else
             submission.RecordFileRejected(file, command.FileName, command.RejectionReason, now);
 

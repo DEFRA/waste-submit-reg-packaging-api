@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using WasteSubmitRegPackaging.Fees.Contracts;
 using WasteSubmitRegPackaging.Packaging.Domain;
 
 namespace WasteSubmitRegPackaging.Packaging.Endpoints;
@@ -33,16 +32,16 @@ internal sealed record StartPackagingFileUploadResponse(Guid PackagingSubmission
 public sealed class PackagingFileScanResultRequest
 {
     [Required]
-    public PackagingFileScanResultForm? Form { get; init; }
+    public PackagingFileScanResultFormRequest? Form { get; init; }
 }
 
-public sealed class PackagingFileScanResultForm
+public sealed class PackagingFileScanResultFormRequest
 {
     [Required]
-    public PackagingFileScanResultFile? File { get; init; }
+    public PackagingFileScanResultFileRequest? File { get; init; }
 }
 
-public sealed class PackagingFileScanResultFile
+public sealed class PackagingFileScanResultFileRequest
 {
     /// <summary><c>complete</c> when the file was stored; anything else (<c>rejected</c>) means it wasn't.</summary>
     [Required]
@@ -63,20 +62,9 @@ public sealed class PackagingFileScanResultFile
 
 public sealed class RecordPackagingResubmissionFeePaymentRequest
 {
-    [Required, EnumDataType(typeof(PaymentMethod))]
-    public PaymentMethod? PaymentMethod { get; init; }
-
-    /// <summary>SAMPLE: the caller says which regulator, until the submission holds the submitter's nation.</summary>
-    [Required, EnumDataType(typeof(RegulatorNation))]
-    public RegulatorNation? Regulator { get; init; }
-
-    /// <summary>SAMPLE: a compliance scheme's members. Ignored for a direct producer.</summary>
-    [Range(0, int.MaxValue)]
-    public int MemberCount { get; init; }
-
-    /// <summary>SAMPLE: what has already been paid, in pence.</summary>
-    [Range(0, double.MaxValue)]
-    public decimal PreviousPayments { get; init; }
+    /// <summary>PLACEHOLDER: the reference of the payment for this cycle's resubmission fee.</summary>
+    [Required, StringLength(100)]
+    public string? PaymentReference { get; init; }
 }
 
 public sealed class SubmitPackagingSubmissionRequest

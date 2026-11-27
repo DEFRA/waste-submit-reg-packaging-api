@@ -4,7 +4,7 @@
     The Packaging module (sample), for the packaging workflow that is being written from scratch.
     It has the same layout as Registration: Domain / Application / Infrastructure / Endpoints.
 
-    It uses other modules only through their Contracts projects (Fees and SubmissionPeriods), never the modules.
+    It uses other modules only through their Contracts projects (SubmissionPeriods), never the modules.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -19,7 +19,6 @@
   <ItemGroup>
     <ProjectReference Include="..\WasteSubmitRegPackaging.SharedKernel\WasteSubmitRegPackaging.SharedKernel.csproj" />
     <ProjectReference Include="..\WasteSubmitRegPackaging.SharedKernel.Infrastructure\WasteSubmitRegPackaging.SharedKernel.Infrastructure.csproj" />
-    <ProjectReference Include="..\WasteSubmitRegPackaging.Fees.Contracts\WasteSubmitRegPackaging.Fees.Contracts.csproj" />
     <ProjectReference Include="..\WasteSubmitRegPackaging.SubmissionPeriods.Contracts\WasteSubmitRegPackaging.SubmissionPeriods.Contracts.csproj" />
   </ItemGroup>
 

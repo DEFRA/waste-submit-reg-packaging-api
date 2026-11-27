@@ -25,6 +25,9 @@ internal static class PackagingErrors
     public static Error UnknownSubmissionPeriod(string submissionPeriod) =>
         Error.Validation("packaging.unknown_submission_period", $"There is no packaging submission period called '{submissionPeriod}'.");
 
+    public static Error FileNotAwaitingValidation(PackagingFileStatus status) =>
+        Error.Conflict("packaging.file_not_awaiting_validation", $"The file is {status}, so it cannot be validated.");
+
     public static Error UploadNotAllowed(PackagingSubmissionStatus status) =>
         Error.Conflict("packaging.upload_not_allowed", $"A file cannot be uploaded while the submission is {status}.");
 

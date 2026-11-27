@@ -10,8 +10,8 @@ internal readonly record struct PackagingSubmissionId(Guid Value)
 }
 
 // Enums are stored as strings, with CHECK constraints in the Liquibase changelog, and serialised as strings in the
-// API. Adding a value means changing both. The names are the ones EPR uses today (SubmissionPeriodStatus,
-// PaymentOptions, PackagingRegulatorDecision), so nothing here is a new term.
+// API. Adding a value means changing both. The status and decision names are the ones EPR uses today
+// (SubmissionPeriodStatus, RegulatorDecision).
 //
 // The enums used in request types are public, because the validation generator needs every type a request exposes
 // to be public. Everything else in Domain stays internal.
@@ -39,10 +39,13 @@ internal enum PackagingFileStatus
     /// <summary>The uploader rejected it, for example for a virus. Nothing was stored.</summary>
     Rejected,
 
-    /// <summary>Stored, checked, and has errors. It can't be submitted.</summary>
+    /// <summary>Stored in S3 and waiting for validation, or being validated. Validation is a step of its own.</summary>
+    Validating,
+
+    /// <summary>Validated, and has errors. It can't be submitted.</summary>
     Invalid,
 
-    /// <summary>Stored and checked with no errors. It may have warnings.</summary>
+    /// <summary>Validated with no errors. It may have warnings.</summary>
     Valid
 }
 
@@ -60,14 +63,6 @@ internal enum PackagingNextStep
     /// <summary>Resubmission cycles only.</summary>
     PayResubmissionFee,
     SubmitToRegulator
-}
-
-[JsonConverter(typeof(JsonStringEnumConverter<PaymentMethod>))]
-public enum PaymentMethod
-{
-    PayOnline,
-    PayByBankTransfer,
-    PayByPhone
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<PackagingRegulatorDecision>))]

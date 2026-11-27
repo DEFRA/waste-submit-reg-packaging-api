@@ -39,8 +39,7 @@ internal sealed record PackagingSubmissionView(
                 file is null
                     ? null
                     : new SubmissionFileView(file.Id, file.Status, file.FileName, file.ErrorCount, file.WarningCount, file.StartedAt),
-                cycle.PaymentMethod,
-                cycle.FeeTotal,
+                cycle.PaymentReference,
                 cycle.SubmittedFileId,
                 cycle.SubmittedAt,
                 cycle.Decision,
@@ -50,13 +49,12 @@ internal sealed record PackagingSubmissionView(
 }
 
 /// <param name="LatestFile">The newest upload in this cycle, whatever happened to it.</param>
-/// <param name="FeeTotal">The resubmission fee charged for this cycle, in pence. Null until it is recorded.</param>
+/// <param name="PaymentReference">Resubmissions only: the payment for this cycle's fee. Null until it is recorded.</param>
 internal sealed record SubmissionCycleView(
     int CycleNumber,
     bool IsResubmission,
     SubmissionFileView? LatestFile,
-    PaymentMethod? PaymentMethod,
-    decimal? FeeTotal,
+    string? PaymentReference,
     Guid? SubmittedFileId,
     DateTimeOffset? SubmittedAt,
     PackagingRegulatorDecision? Decision,

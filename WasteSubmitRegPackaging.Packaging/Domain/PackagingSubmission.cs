@@ -1,4 +1,3 @@
-using WasteSubmitRegPackaging.Fees.Contracts;
 using WasteSubmitRegPackaging.SharedKernel.Domain;
 using WasteSubmitRegPackaging.SharedKernel.Results;
 using WasteSubmitRegPackaging.SharedKernel.Users;
@@ -104,9 +103,10 @@ internal sealed class PackagingSubmission : AggregateRoot<PackagingSubmissionId>
         return LatestFile?.Status switch
         {
             null or PackagingFileStatus.Rejected => PackagingNextStep.UploadFile,
-            PackagingFileStatus.Uploading => PackagingNextStep.AwaitFileCheck,
+            // Two waits, one step: the caller re-reads until it moves on, and needn't know which it is waiting for.
+            PackagingFileStatus.Uploading or PackagingFileStatus.Validating => PackagingNextStep.AwaitFileCheck,
             PackagingFileStatus.Invalid => PackagingNextStep.FixErrors,
-            _ => CurrentCycle is { IsResubmission: true, PaymentMethod: null }
+            _ => CurrentCycle is { IsResubmission: true, PaymentReference: null }
                 ? PackagingNextStep.PayResubmissionFee
                 : PackagingNextStep.SubmitToRegulator
         };
@@ -135,24 +135,33 @@ internal sealed class PackagingSubmission : AggregateRoot<PackagingSubmissionId>
         return file;
     }
 
-    /// <summary>The uploader stored the file, and it has been checked.</summary>
-    public void RecordFileStored(SubmissionFile file, StoredFile stored, PackagingFileCheck check, DateTimeOffset now) =>
-        file.Store(stored, check, now);
+    /// <summary>The uploader stored the file. It now waits for validation, which is a step of its own.</summary>
+    public void RecordFileStored(SubmissionFile file, StoredFile stored, DateTimeOffset now) => file.Store(stored, now);
+
+    /// <summary>The stored file has been validated: it is now Valid or Invalid.</summary>
+    public Result RecordFileValidated(SubmissionFile file, PackagingFileCheck check, DateTimeOffset now)
+    {
+        if (file.Status != PackagingFileStatus.Validating)
+            return PackagingErrors.FileNotAwaitingValidation(file.Status);
+
+        file.RecordValidation(check, now);
+        return Result.Success();
+    }
 
     /// <summary>The uploader rejected the file, for example for a virus.</summary>
     public void RecordFileRejected(SubmissionFile file, string? fileName, string? reason, DateTimeOffset now) =>
         file.Reject(fileName, reason, now);
 
     /// <summary>
-    /// Resubmissions only. Records the fee charged for this cycle and how the producer will pay it. The fee is the
-    /// snapshot: it is stored with its lines and never recalculated.
+    /// Resubmissions only. PLACEHOLDER for the fee step: records the reference of the payment for this cycle's fee,
+    /// which is what lets the cycle be submitted.
     /// </summary>
-    public Result RecordResubmissionFeePayment(PaymentMethod paymentMethod, ResubmissionFee fee, DateTimeOffset now)
+    public Result RecordResubmissionFeePayment(string paymentReference, DateTimeOffset now)
     {
         if (StepNotNext(PackagingNextStep.PayResubmissionFee) is { } error)
             return error;
 
-        CurrentCycle.RecordFeePayment(paymentMethod, fee, now);
+        CurrentCycle.RecordPayment(paymentReference, now);
         return Result.Success();
     }
 

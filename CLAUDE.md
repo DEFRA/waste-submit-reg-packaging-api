@@ -46,6 +46,20 @@ especially "Where to put new code", "Anatomy of a use case" and "Adding a use ca
    - a `ServiceTests/` `XxxEndpointsTest` that calls the endpoint and pins the JSON shape and the failures;
    - a `ServiceTests/` `XxxDatabaseTest` when a rule lives in SQL or a changeset changes.
 
+## The packaging workflow
+The Packaging module holds a thin sample of the whole packaging data workflow: one submission, its files and its
+cycles, one status, and one `NextStep()`. `docs/packaging_workflow.md` says what is in place and why. It is a sample,
+not a contract: it is there to be built on, and changed when it doesn't fit.
+
+- **Read `docs/packaging_workflow.md` before planning any change to the Packaging module.**
+- **Say what is already there.** In the plan, first tell the developer what is in place for the step they are working
+  on, then how the change fits it: which aggregate method, command, table and next step it touches.
+- **Don't assume, and don't work round the shape.** If the change doesn't fit, say so plainly and put the options to
+  the developer: extend the shape, or change it. Never quietly add a flag, a status or a table to get past it.
+- **The frontend routes on `nextStep`.** Don't add state the frontend has to interpret. A new step for the producer
+  is a new `PackagingNextStep` value; anything else is a fact recorded on the submission, a file or a cycle.
+- **Keep the page true.** A change to the workflow updates `docs/packaging_workflow.md` in the same change.
+
 ## Module boundaries (enforced by `ArchitectureTest`)
 - Modules:
   - `Registration` (`reg_*`) and `Packaging` (`pkg_*`) are workflow modules;
@@ -109,7 +123,8 @@ Not in this repo. Both suites cover published endpoints only, and publishing an 
 ## Not decided yet: don't build on these without asking
 - The trust model for the user headers (`X-User-Id`, `X-User-Type`, `X-Organisation-Id`) is a placeholder.
 - Every endpoint except health needs a service-to-service API key client (the ACL from `main`, with `read` and
-  `write` scopes). Don't remove or bypass it.
+  `write` scopes). Don't remove or bypass it. The one exception is the CDP uploader's callback, which a secret token in its
+  URL protects instead (`docs/packaging_workflow.md`); don't add another without asking.
 - The outbox works, but its publisher only logs. Routing by event type and a real sender aren't built.
 - The registration, regulator and packaging submission endpoints are SAMPLES (`.AsSample(...)`). They will change.
 

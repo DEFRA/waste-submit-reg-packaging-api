@@ -62,22 +62,10 @@ internal sealed class PackagingSubmissionConfiguration : IEntityTypeConfiguratio
             cycle.HasKey(c => c.Id);
 
             cycle.Property(c => c.Id).ValueGeneratedNever();
-            cycle.Property(c => c.PaymentMethod).HasConversion<string>().HasMaxLength(20);
+            cycle.Property(c => c.PaymentReference).HasMaxLength(100);
             cycle.Property(c => c.SubmittedBy).HasMaxLength(200);
             cycle.Property(c => c.Decision).HasConversion<string>().HasMaxLength(20);
             cycle.Property(c => c.DecisionComments).HasMaxLength(4000);
-
-            cycle.OwnsMany(c => c.FeeLines, line =>
-            {
-                line.ToTable("pkg_submission_fee_line");
-                line.WithOwner().HasForeignKey("SubmissionCycleId");
-                line.HasKey(l => l.Id);
-
-                line.Property(l => l.Id).ValueGeneratedNever();
-                line.Property(l => l.Description).HasMaxLength(255);
-            });
-
-            cycle.Navigation(c => c.FeeLines).HasField("_feeLines").UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
         builder.Navigation(s => s.Files).HasField("_files").UsePropertyAccessMode(PropertyAccessMode.Field);

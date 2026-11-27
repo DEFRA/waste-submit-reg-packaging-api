@@ -1,5 +1,3 @@
-using WasteSubmitRegPackaging.Fees.Contracts;
-
 namespace WasteSubmitRegPackaging.Packaging.Domain;
 
 /// <summary>
@@ -8,8 +6,6 @@ namespace WasteSubmitRegPackaging.Packaging.Domain;
 /// </summary>
 internal sealed class SubmissionCycle
 {
-    private readonly List<SubmissionFeeLine> _feeLines = [];
-
     private SubmissionCycle()
     {
         // For EF Core.
@@ -35,19 +31,13 @@ internal sealed class SubmissionCycle
 
     public DateTimeOffset OpenedAt { get; private init; }
 
-    // The fee, snapshotted when the producer chooses how to pay, and never recalculated. The header is one-to-one
-    // with the cycle, so it is columns here; only the lines need rows (pkg_submission_fee_line).
+    /// <summary>
+    /// Resubmissions only: the reference of the payment for this cycle's fee. PLACEHOLDER for the fee step: it is the
+    /// link to the payment, which will be held in the payment table ported from epr-payment-service.
+    /// </summary>
+    public string? PaymentReference { get; private set; }
 
-    public PaymentMethod? PaymentMethod { get; private set; }
-
-    /// <summary>In pence.</summary>
-    public decimal? FeeTotal { get; private set; }
-
-    public int? FeeMemberCount { get; private set; }
-
-    public DateTimeOffset? FeeRecordedAt { get; private set; }
-
-    public IReadOnlyList<SubmissionFeeLine> FeeLines => _feeLines;
+    public DateTimeOffset? PaymentRecordedAt { get; private set; }
 
     // The submission to the regulator.
 
@@ -70,13 +60,10 @@ internal sealed class SubmissionCycle
 
     public DateTimeOffset? DecidedAt { get; private set; }
 
-    internal void RecordFeePayment(PaymentMethod paymentMethod, ResubmissionFee fee, DateTimeOffset now)
+    internal void RecordPayment(string paymentReference, DateTimeOffset now)
     {
-        PaymentMethod = paymentMethod;
-        FeeTotal = fee.TotalResubmissionFee;
-        FeeMemberCount = fee.MemberCount;
-        FeeRecordedAt = now;
-        _feeLines.AddRange(fee.Lines.Select(line => new SubmissionFeeLine(line)));
+        PaymentReference = paymentReference;
+        PaymentRecordedAt = now;
     }
 
     internal void Submit(Guid fileId, Guid submittedByUserId, string submittedBy, DateTimeOffset now)
@@ -94,41 +81,4 @@ internal sealed class SubmissionCycle
         DecidedByUserId = decidedByUserId;
         DecidedAt = now;
     }
-}
-
-/// <summary>
-/// One charged item, in pence (<c>pkg_submission_fee_line</c>). It copies the unit price and description, so a later
-/// rate change can't alter what was charged, and keeps the ids of the rate and fee type it came from.
-/// </summary>
-internal sealed class SubmissionFeeLine
-{
-    private SubmissionFeeLine()
-    {
-        // For EF Core.
-    }
-
-    internal SubmissionFeeLine(FeeLine line)
-    {
-        Id = Guid.CreateVersion7();
-        FeeRateId = line.FeeRateId;
-        FeeGroupId = line.FeeGroupId;
-        Description = line.Description;
-        UnitPrice = line.UnitPrice;
-        Quantity = line.Quantity;
-        Amount = line.Amount;
-    }
-
-    public Guid Id { get; private init; }
-
-    public int FeeRateId { get; private init; }
-
-    public int FeeGroupId { get; private init; }
-
-    public string Description { get; private init; } = null!;
-
-    public decimal UnitPrice { get; private init; }
-
-    public int Quantity { get; private init; }
-
-    public decimal Amount { get; private init; }
 }
