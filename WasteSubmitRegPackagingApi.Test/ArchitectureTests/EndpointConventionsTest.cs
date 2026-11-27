@@ -12,8 +12,15 @@ namespace WasteSubmitRegPackagingApi.Test.ArchitectureTests;
 public class EndpointConventionsTest
 {
     // CDP polls the health checks, and an authentication failure would mark the service unhealthy. The OpenAPI
-    // documents are only mapped where Swagger:Enabled is set. Nothing else may be anonymous.
-    private static readonly string[] s_anonymousRoutes = ["/health", "/health/db", "/openapi/{documentName}.json"];
+    // documents are only mapped where Swagger:Enabled is set. The CDP uploader's callback can't send an API key, so
+    // a secret token in its URL protects it instead (docs/packaging_workflow.md). Nothing else may be anonymous.
+    private static readonly string[] s_anonymousRoutes =
+    [
+        "/health",
+        "/health/db",
+        "/openapi/{documentName}.json",
+        "/packaging/file-uploads/{fileId:guid}/scan-result/{token}"
+    ];
 
     [Fact]
     public async Task Every_endpoint_requires_the_read_or_write_policy_except_health_and_the_openapi_documents()

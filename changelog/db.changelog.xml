@@ -29,5 +29,6 @@
     <include file="changes/submission-periods/0001-submission-periods.xml" relativeToChangelogFile="true"/>
     <include file="changes/registration/0001-registration.xml" relativeToChangelogFile="true"/>
     <include file="changes/packaging/0001-packaging.xml" relativeToChangelogFile="true"/>
+    <include file="changes/packaging/0002-packaging-workflow.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

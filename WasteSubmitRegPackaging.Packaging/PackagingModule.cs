@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using WasteSubmitRegPackaging.Packaging.Application;
 using WasteSubmitRegPackaging.Packaging.Domain;
 using WasteSubmitRegPackaging.Packaging.Endpoints;
 using WasteSubmitRegPackaging.Packaging.Infrastructure;
@@ -15,6 +16,9 @@ public static class PackagingModule
         services.AddModuleDbContext<PackagingDbContext>();
         services.AddHandlersFromAssembly(typeof(PackagingModule).Assembly);
         services.AddScoped<IPackagingSubmissionRepository, PackagingSubmissionRepository>();
+
+        // PLACEHOLDER: passes every file. Replace with the real validator when it is built.
+        services.AddScoped<IPackagingFileValidator, PlaceholderPackagingFileValidator>();
         services.AddValidation();
 
         return services;

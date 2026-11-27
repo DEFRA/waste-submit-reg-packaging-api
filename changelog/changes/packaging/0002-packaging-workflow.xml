@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Packaging module (pkg_*): the shape of the packaging data workflow. SAMPLE; see docs/packaging_workflow.md.
+
+      pkg_packaging_submission   one per submitter and submission period: who, which period, the status
+      pkg_submission_file        one per upload: where the file is in S3 and what checking it found
+      pkg_submission_cycle       one per pass from upload to the regulator's decision: what was submitted, the fee, the decision
+      pkg_submission_fee_line    the lines of a cycle's fee
+-->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="packaging-0003-packaging-submission-workflow" author="waste-submit-reg">
+        <comment>The sample table held only sample rows (Draft, Submitted), which don't fit the new columns, so they are deleted.</comment>
+        <sql>
+            DELETE FROM pkg_packaging_submission;
+
+            ALTER TABLE pkg_packaging_submission
+                DROP CONSTRAINT ck_pkg_packaging_submission_status,
+                ALTER COLUMN status TYPE varchar(40),
+                ADD CONSTRAINT ck_pkg_packaging_submission_status
+                    CHECK (status IN ('InProgress', 'SubmittedToRegulator', 'AcceptedByRegulator', 'RejectedByRegulator')),
+                -- Set when a compliance scheme submits for its members; null for a direct producer.
+                ADD COLUMN compliance_scheme_id uuid,
+                -- period_packaging_submission_period.name, for example 'July to December 2025'. Not a foreign key:
+                -- writes don't cross modules.
+                ADD COLUMN submission_period    varchar(100) NOT NULL;
+
+            DROP INDEX ix_pkg_packaging_submission_organisation_year;
+
+            -- One submission per submitter and period. NULLS NOT DISTINCT, so two direct producer rows (no
+            -- compliance scheme) for the same organisation and period also clash.
+            CREATE UNIQUE INDEX uq_pkg_packaging_submission_submitter_period
+                ON pkg_packaging_submission (organisation_id, compliance_scheme_id, submission_period) NULLS NOT DISTINCT;
+        </sql>
+    </changeSet>
+
+    <changeSet id="packaging-0004-submission-cycle" author="waste-submit-reg">
+        <sql>
+            CREATE TABLE pkg_submission_cycle (
+                id                      uuid        NOT NULL CONSTRAINT pk_pkg_submission_cycle PRIMARY KEY,
+                packaging_submission_id uuid        NOT NULL CONSTRAINT fk_pkg_submission_cycle_submission
+                    REFERENCES pkg_packaging_submission (id),
+                cycle_number            integer     NOT NULL,
+                -- True when an earlier cycle was accepted. Only a resubmission has a fee.
+                is_resubmission         boolean     NOT NULL,
+                opened_at               timestamptz NOT NULL,
+                -- The fee, fixed when the producer chooses how to pay. Amounts are in pence.
+                payment_method          varchar(20) CONSTRAINT ck_pkg_submission_cycle_payment_method
+                    CHECK (payment_method IN ('PayOnline', 'PayByBankTransfer', 'PayByPhone')),
+                fee_total               numeric(19, 4),
+                fee_member_count        integer,
+                fee_recorded_at         timestamptz,
+                -- The submission to the regulator. submitted_file_id is a pkg_submission_file row of this cycle.
+                submitted_file_id       uuid,
+                submitted_by_user_id    uuid,
+                submitted_by            varchar(200),
+                submitted_at            timestamptz,
+                -- The regulator's decision, which closes the cycle.
+                decision                varchar(20) CONSTRAINT ck_pkg_submission_cycle_decision
+                    CHECK (decision IN ('Accepted', 'Rejected')),
+                decision_comments       varchar(4000),
+                decided_by_user_id      uuid,
+                decided_at              timestamptz,
+                CONSTRAINT uq_pkg_submission_cycle_number UNIQUE (packaging_submission_id, cycle_number)
+            );
+        </sql>
+    </changeSet>
+
+    <changeSet id="packaging-0005-submission-file" author="waste-submit-reg">
+        <sql>
+            CREATE TABLE pkg_submission_file (
+                id                      uuid        NOT NULL CONSTRAINT pk_pkg_submission_file PRIMARY KEY,
+                packaging_submission_id uuid        NOT NULL CONSTRAINT fk_pkg_submission_file_submission
+                    REFERENCES pkg_packaging_submission (id),
+                submission_cycle_id     uuid        NOT NULL CONSTRAINT fk_pkg_submission_file_cycle
+                    REFERENCES pkg_submission_cycle (id),
+                status                  varchar(20) NOT NULL CONSTRAINT ck_pkg_submission_file_status
+                    CHECK (status IN ('Uploading', 'Rejected', 'Invalid', 'Valid')),
+                -- The secret in the callback URL given to the CDP uploader for this upload.
+                callback_token          varchar(64) NOT NULL,
+                -- From the uploader's callback: known once the file has been scanned.
+                file_name               varchar(260),
+                s3_bucket               varchar(100),
+                s3_key                  varchar(1024),
+                rejection_reason        varchar(1000),
+                -- From checking the file.
+                error_count             integer,
+                warning_count           integer,
+                started_by_user_id      uuid        NOT NULL,
+                started_at              timestamptz NOT NULL,
+                scanned_at              timestamptz
+            );
+
+            CREATE INDEX ix_pkg_submission_file_submission ON pkg_submission_file (packaging_submission_id);
+
+            ALTER TABLE pkg_submission_cycle
+                ADD CONSTRAINT fk_pkg_submission_cycle_submitted_file
+                    FOREIGN KEY (submitted_file_id) REFERENCES pkg_submission_file (id);
+        </sql>
+    </changeSet>
+
+    <changeSet id="packaging-0006-submission-fee-line" author="waste-submit-reg">
+        <comment>What was charged, copied at the time, with the rate and fee type it came from (the fee tables are shared reference data).</comment>
+        <sql>
+            CREATE TABLE pkg_submission_fee_line (
+                id                  uuid           NOT NULL CONSTRAINT pk_pkg_submission_fee_line PRIMARY KEY,
+                submission_cycle_id uuid           NOT NULL CONSTRAINT fk_pkg_submission_fee_line_cycle
+                    REFERENCES pkg_submission_cycle (id),
+                fee_rate_id         integer        NOT NULL CONSTRAINT fk_pkg_submission_fee_line_fee_rate
+                    REFERENCES fee_rate (id),
+                fee_group_id        integer        NOT NULL CONSTRAINT fk_pkg_submission_fee_line_fee_group
+                    REFERENCES fee_group (id),
+                description         varchar(255)   NOT NULL,
+                unit_price          numeric(19, 4) NOT NULL,
+                quantity            integer        NOT NULL,
+                amount              numeric(19, 4) NOT NULL
+            );
+
+            CREATE INDEX ix_pkg_submission_fee_line_cycle ON pkg_submission_fee_line (submission_cycle_id);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
